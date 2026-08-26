@@ -3,9 +3,12 @@ import {
   Coffee, Search, Plus, Minus, Trash2, Smartphone, CreditCard, Banknote,
   DollarSign, Coins, Settings, BarChart3, ClipboardList, Pencil, X, Check,
   AlertTriangle, PackagePlus, Loader2, Receipt, TrendingUp,
-  ArrowLeftRight, CalendarDays, Printer, Lock, Unlock, Boxes
+  ArrowLeftRight, CalendarDays, Printer, Lock, Unlock, Boxes,
+  Eye, EyeOff, KeyRound, ChevronDown, ChevronRight, ArrowLeft,
+  ImagePlus, LayoutGrid, Croissant, UtensilsCrossed, ChefHat, Store,
+  Pizza, IceCream2, CupSoda, Cookie, Sandwich, ShieldCheck
 } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from "recharts";
 
 /* ------------------------------------------------------------------ */
 /*  Datos base                                                         */
@@ -15,132 +18,141 @@ const STORAGE_KEYS = {
   PRODUCTS: "avp_productos",
   CONFIG: "avp_config",
   SALES: "avp_ventas",
+  MESAS: "avp_mesas",
 };
-
-const CONFIG_PASSWORD = "100Millonesde$";
 
 const CATEGORIAS_BASE = ["Bebidas", "Chuchería", "Menú"];
 
 const DEFAULT_PRODUCTS = [
-  { id: "b1", name: "Agua MIBRISA 1,5", category: "Bebidas", priceUSD: 2.5, stock: 0, alertaStock: 5 },
-  { id: "b2", name: "Agua MIBRISA 500ml 1x24", category: "Bebidas", priceUSD: 1.25, stock: 0, alertaStock: 5 },
-  { id: "b3", name: "Agua SABORIZADA", category: "Bebidas", priceUSD: 1.7, stock: 0, alertaStock: 5 },
-  { id: "b4", name: "Batido 1 Sabor", category: "Bebidas", priceUSD: 2.5, stock: 0, alertaStock: 5 },
-  { id: "b5", name: "Batido con Leche", category: "Bebidas", priceUSD: 4.0, stock: 0, alertaStock: 5 },
-  { id: "b6", name: "Gatorade PET 500Ml x 12 Unid", category: "Bebidas", priceUSD: 3.0, stock: 0, alertaStock: 5 },
-  { id: "b7", name: "Gelatina FRESA", category: "Bebidas", priceUSD: 2.0, stock: 0, alertaStock: 5 },
-  { id: "b8", name: "VALLE 250ml", category: "Bebidas", priceUSD: 1.7, stock: 0, alertaStock: 5 },
-  { id: "b9", name: "Jugo FRICA 250ml", category: "Bebidas", priceUSD: 2.0, stock: 0, alertaStock: 5 },
-  { id: "b10", name: "Jugo LALO Durz / Manz / Naranja 0,40Lts", category: "Bebidas", priceUSD: 2.3, stock: 0, alertaStock: 5 },
-  { id: "b11", name: "Lipton 500Ml x 12 Unid", category: "Bebidas", priceUSD: 3.0, stock: 0, alertaStock: 5 },
-  { id: "b12", name: "Malta de LATA", category: "Bebidas", priceUSD: 2.6, stock: 0, alertaStock: 5 },
-  { id: "b13", name: "Maltin N/R 225ml x 12Unid", category: "Bebidas", priceUSD: 1.5, stock: 0, alertaStock: 5 },
-  { id: "b14", name: "Maltin POLAR Botella Ret 222ml x 36Unid", category: "Bebidas", priceUSD: 1.0, stock: 0, alertaStock: 5 },
-  { id: "b15", name: "Refresco / Valle 1,5Lts", category: "Bebidas", priceUSD: 2.5, stock: 0, alertaStock: 5 },
-  { id: "b16", name: "Refresco coca cola 2lt", category: "Bebidas", priceUSD: 2.6, stock: 0, alertaStock: 5 },
-  { id: "b17", name: "Refresco Coca cola LATA", category: "Bebidas", priceUSD: 2.5, stock: 0, alertaStock: 5 },
-  { id: "b18", name: "Refresco PET 355ML N/R", category: "Bebidas", priceUSD: 1.5, stock: 0, alertaStock: 5 },
-  { id: "b19", name: "Refrescos 1litro variado x 6Unid", category: "Bebidas", priceUSD: 2.0, stock: 0, alertaStock: 5 },
-  { id: "b20", name: "Refrescos Botella Mezclados 350Ml 24Unid", category: "Bebidas", priceUSD: 1.2, stock: 0, alertaStock: 5 },
-  { id: "b21", name: "Rikomalt / Chica / Avena 250ml PARMALAT", category: "Bebidas", priceUSD: 3.0, stock: 0, alertaStock: 5 },
-  { id: "b22", name: "Rockstar 24Unid", category: "Bebidas", priceUSD: 2.3, stock: 0, alertaStock: 5 },
-  { id: "b23", name: "Santal Active ZANH-NARJ 1500ml 1x6", category: "Bebidas", priceUSD: 8.5, stock: 0, alertaStock: 5 },
-  { id: "b24", name: "Santal Active ZANH-NARJ 500ml 1x6", category: "Bebidas", priceUSD: 3.6, stock: 0, alertaStock: 5 },
-  { id: "b25", name: "Soda", category: "Bebidas", priceUSD: 2.0, stock: 0, alertaStock: 5 },
-  { id: "b26", name: "Té LALO Durz / Limo", category: "Bebidas", priceUSD: 2.3, stock: 0, alertaStock: 5 },
-  { id: "b27", name: "Té PARMALAT 250ml", category: "Bebidas", priceUSD: 2.0, stock: 0, alertaStock: 5 },
-  { id: "b28", name: "Yogurt FIRME Fresa LALO", category: "Bebidas", priceUSD: 1.8, stock: 0, alertaStock: 5 },
-  { id: "b29", name: "Yogurt Con cereal LALO", category: "Bebidas", priceUSD: 3.0, stock: 0, alertaStock: 5 },
-  { id: "b30", name: "YOKA", category: "Bebidas", priceUSD: 3.2, stock: 0, alertaStock: 5 },
-  { id: "b31", name: "YOLO Yogurt liq", category: "Bebidas", priceUSD: 3.5, stock: 0, alertaStock: 5 },
-  { id: "b32", name: "Yogurt firme YOLO", category: "Bebidas", priceUSD: 3.5, stock: 0, alertaStock: 5 },
-  { id: "b33", name: "Migurt FRUTA", category: "Bebidas", priceUSD: 3.0, stock: 0, alertaStock: 5 },
-  { id: "c1", name: "Arfajores", category: "Chuchería", priceUSD: 1.9, stock: 0, alertaStock: 5 },
-  { id: "c2", name: "Aros de cebolla TOM", category: "Chuchería", priceUSD: 0.9, stock: 0, alertaStock: 5 },
-  { id: "c3", name: "Belvita Hony Bran / Kraket Bran 9x28Gr", category: "Chuchería", priceUSD: 0.7, stock: 0, alertaStock: 5 },
-  { id: "c4", name: "Bocaditos", category: "Chuchería", priceUSD: 0.95, stock: 0, alertaStock: 5 },
-  { id: "c5", name: "Brownies", category: "Chuchería", priceUSD: 2.5, stock: 0, alertaStock: 5 },
-  { id: "c6", name: "Brownies MINI 175gr", category: "Chuchería", priceUSD: 2.8, stock: 0, alertaStock: 5 },
-  { id: "c7", name: "Bubaloo", category: "Chuchería", priceUSD: 0.25, stock: 0, alertaStock: 5 },
-  { id: "c8", name: "Caramelos VARIOS 3 x 100", category: "Chuchería", priceUSD: 0.15, stock: 0, alertaStock: 5 },
-  { id: "c9", name: "Chicle BOLA AGOGO 24U", category: "Chuchería", priceUSD: 0.5, stock: 0, alertaStock: 5 },
-  { id: "c10", name: "Chocolate de leche / RIKITY 1x12 SAVOY", category: "Chuchería", priceUSD: 2.2, stock: 0, alertaStock: 5 },
-  { id: "c11", name: "Chupeta Pin Pon", category: "Chuchería", priceUSD: 0.25, stock: 0, alertaStock: 5 },
-  { id: "c12", name: "Club Social 6x26gr", category: "Chuchería", priceUSD: 0.7, stock: 0, alertaStock: 5 },
-  { id: "c13", name: "Cocosette / Susy Maxi 18 x 50g", category: "Chuchería", priceUSD: 1.6, stock: 0, alertaStock: 5 },
-  { id: "c14", name: "Cocosette MINI 18x25gr", category: "Chuchería", priceUSD: 1.3, stock: 0, alertaStock: 5 },
-  { id: "c15", name: "CriCri chocolate", category: "Chuchería", priceUSD: 1.8, stock: 0, alertaStock: 5 },
-  { id: "c16", name: "De todito XXXL 360gr", category: "Chuchería", priceUSD: 8.34, stock: 0, alertaStock: 5 },
-  { id: "c17", name: "Flaquito", category: "Chuchería", priceUSD: 1.2, stock: 0, alertaStock: 5 },
-  { id: "c18", name: "Flips 120gs", category: "Chuchería", priceUSD: 3.0, stock: 0, alertaStock: 5 },
-  { id: "c19", name: "FREEGELLS VITAC 12Unds", category: "Chuchería", priceUSD: 1.2, stock: 0, alertaStock: 5 },
-  { id: "c20", name: "Galleta DANI CHIP", category: "Chuchería", priceUSD: 0.6, stock: 0, alertaStock: 5 },
-  { id: "c21", name: "Galleta TIP TOP", category: "Chuchería", priceUSD: 1.6, stock: 0, alertaStock: 5 },
-  { id: "c22", name: "Galletas AVENA / GRANOLA / CHIPS", category: "Chuchería", priceUSD: 1.7, stock: 0, alertaStock: 5 },
-  { id: "c23", name: "Galletas KATY", category: "Chuchería", priceUSD: 0.9, stock: 0, alertaStock: 5 },
-  { id: "c24", name: "Galletas SALUDABLE", category: "Chuchería", priceUSD: 1.9, stock: 0, alertaStock: 5 },
-  { id: "c25", name: "JaenCAke", category: "Chuchería", priceUSD: 1.8, stock: 0, alertaStock: 5 },
-  { id: "c26", name: "Life Savers Surtido 10U", category: "Chuchería", priceUSD: 2.56, stock: 0, alertaStock: 5 },
-  { id: "c27", name: "Mani JAP / SAL MUNCHY", category: "Chuchería", priceUSD: 1.2, stock: 0, alertaStock: 5 },
-  { id: "c28", name: "Mani Mixto", category: "Chuchería", priceUSD: 0.9, stock: 0, alertaStock: 5 },
-  { id: "c29", name: "Mento 12U", category: "Chuchería", priceUSD: 1.0, stock: 0, alertaStock: 5 },
-  { id: "c30", name: "Mini MARIA bolsa 200Gr", category: "Chuchería", priceUSD: 2.2, stock: 0, alertaStock: 5 },
-  { id: "c31", name: "Nutelini 1x12", category: "Chuchería", priceUSD: 0.6, stock: 0, alertaStock: 5 },
-  { id: "c32", name: "OREO Chocolate paq (1x6)", category: "Chuchería", priceUSD: 1.0, stock: 0, alertaStock: 5 },
-  { id: "c33", name: "Palitos mostrador 18x30", category: "Chuchería", priceUSD: 0.95, stock: 0, alertaStock: 5 },
-  { id: "c34", name: "Palmerita", category: "Chuchería", priceUSD: 0.85, stock: 0, alertaStock: 5 },
-  { id: "c35", name: "Pepito 180g XXL", category: "Chuchería", priceUSD: 3.5, stock: 0, alertaStock: 5 },
-  { id: "c36", name: "Piruetas 20g x 24Unid", category: "Chuchería", priceUSD: 0.6, stock: 0, alertaStock: 5 },
-  { id: "c37", name: "REX Bolsa 200Gr", category: "Chuchería", priceUSD: 2.5, stock: 0, alertaStock: 5 },
-  { id: "c38", name: "Rikiti 12x30Gr", category: "Chuchería", priceUSD: 1.9, stock: 0, alertaStock: 5 },
-  { id: "c39", name: "Samba MINI", category: "Chuchería", priceUSD: 0.9, stock: 0, alertaStock: 5 },
-  { id: "c40", name: "Cheetos Mega Puff", category: "Chuchería", priceUSD: 1.35, stock: 0, alertaStock: 5 },
-  { id: "c41", name: "Boliqueso", category: "Chuchería", priceUSD: 1.35, stock: 0, alertaStock: 5 },
-  { id: "c42", name: "Chees tris", category: "Chuchería", priceUSD: 1.35, stock: 0, alertaStock: 5 },
-  { id: "c43", name: "pepitos", category: "Chuchería", priceUSD: 1.35, stock: 0, alertaStock: 5 },
-  { id: "c44", name: "Chiskesito Orig", category: "Chuchería", priceUSD: 1.2, stock: 0, alertaStock: 5 },
-  { id: "c45", name: "Toci", category: "Chuchería", priceUSD: 1.2, stock: 0, alertaStock: 5 },
-  { id: "c46", name: "Dorito Dina - Queso", category: "Chuchería", priceUSD: 1.6, stock: 0, alertaStock: 5 },
-  { id: "c47", name: "D TODITO", category: "Chuchería", priceUSD: 1.6, stock: 0, alertaStock: 5 },
-  { id: "c48", name: "Papas PUNCH", category: "Chuchería", priceUSD: 1.6, stock: 0, alertaStock: 5 },
-  { id: "c49", name: "Platatito", category: "Chuchería", priceUSD: 1.6, stock: 0, alertaStock: 5 },
-  { id: "c50", name: "Raquety PICANT", category: "Chuchería", priceUSD: 0.9, stock: 0, alertaStock: 5 },
-  { id: "c51", name: "NORMAL", category: "Chuchería", priceUSD: 0.9, stock: 0, alertaStock: 5 },
-  { id: "c52", name: "ChisKronch T", category: "Chuchería", priceUSD: 0.9, stock: 0, alertaStock: 5 },
-  { id: "c53", name: "Kesito", category: "Chuchería", priceUSD: 0.9, stock: 0, alertaStock: 5 },
-  { id: "c54", name: "BoliKruch", category: "Chuchería", priceUSD: 0.9, stock: 0, alertaStock: 5 },
-  { id: "c55", name: "Ruffles", category: "Chuchería", priceUSD: 1.8, stock: 0, alertaStock: 5 },
-  { id: "c56", name: "Chicharron", category: "Chuchería", priceUSD: 1.8, stock: 0, alertaStock: 5 },
-  { id: "c57", name: "Tocinetikas", category: "Chuchería", priceUSD: 1.8, stock: 0, alertaStock: 5 },
-  { id: "c58", name: "Yuca", category: "Chuchería", priceUSD: 1.8, stock: 0, alertaStock: 5 },
-  { id: "c59", name: "Tronkolate MINI", category: "Chuchería", priceUSD: 0.9, stock: 0, alertaStock: 5 },
-  { id: "c60", name: "Turrón Maní", category: "Chuchería", priceUSD: 0.9, stock: 0, alertaStock: 5 },
-  { id: "c61", name: "Torta Manzana (1x6)", category: "Chuchería", priceUSD: 2.5, stock: 0, alertaStock: 5 },
-  { id: "m1", name: "Empanada", category: "Menú", priceUSD: 1.3, stock: 0, alertaStock: 5 },
-  { id: "m2", name: "Tequeñon", category: "Menú", priceUSD: 1.5, stock: 0, alertaStock: 5 },
-  { id: "m3", name: "Tequeñon PROMO", category: "Menú", priceUSD: 2.0, stock: 0, alertaStock: 5 },
-  { id: "m4", name: "Pizza SLICE", category: "Menú", priceUSD: 1.2, stock: 0, alertaStock: 5 },
-  { id: "m5", name: "sandwich jamó y queso", category: "Menú", priceUSD: 3.0, stock: 0, alertaStock: 5 },
-  { id: "m6", name: "Arepa asada", category: "Menú", priceUSD: 3.6, stock: 0, alertaStock: 5 },
-  { id: "m7", name: "Dasayuno CRIOLLO", category: "Menú", priceUSD: 5.0, stock: 0, alertaStock: 5 },
-  { id: "m8", name: "Desayuno AMERICANO", category: "Menú", priceUSD: 5.0, stock: 0, alertaStock: 5 },
-  { id: "m9", name: "Omelet", category: "Menú", priceUSD: 4.0, stock: 0, alertaStock: 5 },
-  { id: "m10", name: "Milanesa de pollo", category: "Menú", priceUSD: 9.0, stock: 0, alertaStock: 5 },
-  { id: "m11", name: "Chuleta de CERDO", category: "Menú", priceUSD: 12.0, stock: 0, alertaStock: 5 },
-  { id: "m12", name: "Solomo de Res", category: "Menú", priceUSD: 12.0, stock: 0, alertaStock: 5 },
-  { id: "m13", name: "Chuleta AHUMADA", category: "Menú", priceUSD: 7.5, stock: 0, alertaStock: 5 },
-  { id: "m14", name: "Calamares rebozados", category: "Menú", priceUSD: 15.0, stock: 0, alertaStock: 5 },
-  { id: "m15", name: "Camarones al ajillo", category: "Menú", priceUSD: 15.0, stock: 0, alertaStock: 5 },
-  { id: "m16", name: "Pasta Bologna", category: "Menú", priceUSD: 5.5, stock: 0, alertaStock: 5 },
-  { id: "m17", name: "Parrilla mixta", category: "Menú", priceUSD: 18.0, stock: 0, alertaStock: 5 },
-  { id: "m18", name: "Ensalada cesar con Pollo", category: "Menú", priceUSD: 8.0, stock: 0, alertaStock: 5 },
-  { id: "m19", name: "Smash Burguer con queso", category: "Menú", priceUSD: 5.5, stock: 0, alertaStock: 5 },
-  { id: "m20", name: "Hamburguesa Clasica + PAPAS", category: "Menú", priceUSD: 8.0, stock: 0, alertaStock: 5 },
-  { id: "m21", name: "Hamburguesa DOBLE + PAPAS", category: "Menú", priceUSD: 10.0, stock: 0, alertaStock: 5 },
-  { id: "m22", name: "Club House + PAPAS", category: "Menú", priceUSD: 12.0, stock: 0, alertaStock: 5 },
+  { id: "b1", name: "Agua MIBRISA 1,5", category: "Bebidas", priceUSD: 2.5, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b2", name: "Agua MIBRISA 500ml 1x24", category: "Bebidas", priceUSD: 1.25, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b3", name: "Agua SABORIZADA", category: "Bebidas", priceUSD: 1.7, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b4", name: "Batido 1 Sabor", category: "Bebidas", priceUSD: 2.5, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b5", name: "Batido con Leche", category: "Bebidas", priceUSD: 4.0, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b6", name: "Gatorade PET 500Ml x 12 Unid", category: "Bebidas", priceUSD: 3.0, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b7", name: "Gelatina FRESA", category: "Bebidas", priceUSD: 2.0, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b8", name: "VALLE 250ml", category: "Bebidas", priceUSD: 1.7, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b9", name: "Jugo FRICA 250ml", category: "Bebidas", priceUSD: 2.0, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b10", name: "Jugo LALO Durz / Manz / Naranja 0,40Lts", category: "Bebidas", priceUSD: 2.3, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b11", name: "Lipton 500Ml x 12 Unid", category: "Bebidas", priceUSD: 3.0, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b12", name: "Malta de LATA", category: "Bebidas", priceUSD: 2.6, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b13", name: "Maltin N/R 225ml x 12Unid", category: "Bebidas", priceUSD: 1.5, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b14", name: "Maltin POLAR Botella Ret 222ml x 36Unid", category: "Bebidas", priceUSD: 1.0, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b15", name: "Refresco / Valle 1,5Lts", category: "Bebidas", priceUSD: 2.5, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b16", name: "Refresco coca cola 2lt", category: "Bebidas", priceUSD: 2.6, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b17", name: "Refresco Coca cola LATA", category: "Bebidas", priceUSD: 2.5, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b18", name: "Refresco PET 355ML N/R", category: "Bebidas", priceUSD: 1.5, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b19", name: "Refrescos 1litro variado x 6Unid", category: "Bebidas", priceUSD: 2.0, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b20", name: "Refrescos Botella Mezclados 350Ml 24Unid", category: "Bebidas", priceUSD: 1.2, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b21", name: "Rikomalt / Chica / Avena 250ml PARMALAT", category: "Bebidas", priceUSD: 3.0, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b22", name: "Rockstar 24Unid", category: "Bebidas", priceUSD: 2.3, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b23", name: "Santal Active ZANH-NARJ 1500ml 1x6", category: "Bebidas", priceUSD: 8.5, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b24", name: "Santal Active ZANH-NARJ 500ml 1x6", category: "Bebidas", priceUSD: 3.6, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b25", name: "Soda", category: "Bebidas", priceUSD: 2.0, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b26", name: "Té LALO Durz / Limo", category: "Bebidas", priceUSD: 2.3, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b27", name: "Té PARMALAT 250ml", category: "Bebidas", priceUSD: 2.0, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b28", name: "Yogurt FIRME Fresa LALO", category: "Bebidas", priceUSD: 1.8, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b29", name: "Yogurt Con cereal LALO", category: "Bebidas", priceUSD: 3.0, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b30", name: "YOKA", category: "Bebidas", priceUSD: 3.2, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b31", name: "YOLO Yogurt liq", category: "Bebidas", priceUSD: 3.5, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b32", name: "Yogurt firme YOLO", category: "Bebidas", priceUSD: 3.5, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "b33", name: "Migurt FRUTA", category: "Bebidas", priceUSD: 3.0, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c1", name: "Arfajores", category: "Chuchería", priceUSD: 1.9, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c2", name: "Aros de cebolla TOM", category: "Chuchería", priceUSD: 0.9, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c3", name: "Belvita Hony Bran / Kraket Bran 9x28Gr", category: "Chuchería", priceUSD: 0.7, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c4", name: "Bocaditos", category: "Chuchería", priceUSD: 0.95, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c5", name: "Brownies", category: "Chuchería", priceUSD: 2.5, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c6", name: "Brownies MINI 175gr", category: "Chuchería", priceUSD: 2.8, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c7", name: "Bubaloo", category: "Chuchería", priceUSD: 0.25, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c8", name: "Caramelos VARIOS 3 x 100", category: "Chuchería", priceUSD: 0.15, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c9", name: "Chicle BOLA AGOGO 24U", category: "Chuchería", priceUSD: 0.5, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c10", name: "Chocolate de leche / RIKITY 1x12 SAVOY", category: "Chuchería", priceUSD: 2.2, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c11", name: "Chupeta Pin Pon", category: "Chuchería", priceUSD: 0.25, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c12", name: "Club Social 6x26gr", category: "Chuchería", priceUSD: 0.7, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c13", name: "Cocosette / Susy Maxi 18 x 50g", category: "Chuchería", priceUSD: 1.6, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c14", name: "Cocosette MINI 18x25gr", category: "Chuchería", priceUSD: 1.3, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c15", name: "CriCri chocolate", category: "Chuchería", priceUSD: 1.8, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c16", name: "De todito XXXL 360gr", category: "Chuchería", priceUSD: 8.34, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c17", name: "Flaquito", category: "Chuchería", priceUSD: 1.2, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c18", name: "Flips 120gs", category: "Chuchería", priceUSD: 3.0, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c19", name: "FREEGELLS VITAC 12Unds", category: "Chuchería", priceUSD: 1.2, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c20", name: "Galleta DANI CHIP", category: "Chuchería", priceUSD: 0.6, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c21", name: "Galleta TIP TOP", category: "Chuchería", priceUSD: 1.6, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c22", name: "Galletas AVENA / GRANOLA / CHIPS", category: "Chuchería", priceUSD: 1.7, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c23", name: "Galletas KATY", category: "Chuchería", priceUSD: 0.9, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c24", name: "Galletas SALUDABLE", category: "Chuchería", priceUSD: 1.9, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c25", name: "JaenCAke", category: "Chuchería", priceUSD: 1.8, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c26", name: "Life Savers Surtido 10U", category: "Chuchería", priceUSD: 2.56, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c27", name: "Mani JAP / SAL MUNCHY", category: "Chuchería", priceUSD: 1.2, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c28", name: "Mani Mixto", category: "Chuchería", priceUSD: 0.9, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c29", name: "Mento 12U", category: "Chuchería", priceUSD: 1.0, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c30", name: "Mini MARIA bolsa 200Gr", category: "Chuchería", priceUSD: 2.2, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c31", name: "Nutelini 1x12", category: "Chuchería", priceUSD: 0.6, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c32", name: "OREO Chocolate paq (1x6)", category: "Chuchería", priceUSD: 1.0, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c33", name: "Palitos mostrador 18x30", category: "Chuchería", priceUSD: 0.95, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c34", name: "Palmerita", category: "Chuchería", priceUSD: 0.85, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c35", name: "Pepito 180g XXL", category: "Chuchería", priceUSD: 3.5, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c36", name: "Piruetas 20g x 24Unid", category: "Chuchería", priceUSD: 0.6, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c37", name: "REX Bolsa 200Gr", category: "Chuchería", priceUSD: 2.5, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c38", name: "Rikiti 12x30Gr", category: "Chuchería", priceUSD: 1.9, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c39", name: "Samba MINI", category: "Chuchería", priceUSD: 0.9, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c40", name: "Cheetos Mega Puff", category: "Chuchería", priceUSD: 1.35, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c41", name: "Boliqueso", category: "Chuchería", priceUSD: 1.35, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c42", name: "Chees tris", category: "Chuchería", priceUSD: 1.35, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c43", name: "pepitos", category: "Chuchería", priceUSD: 1.35, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c44", name: "Chiskesito Orig", category: "Chuchería", priceUSD: 1.2, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c45", name: "Toci", category: "Chuchería", priceUSD: 1.2, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c46", name: "Dorito Dina - Queso", category: "Chuchería", priceUSD: 1.6, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c47", name: "D TODITO", category: "Chuchería", priceUSD: 1.6, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c48", name: "Papas PUNCH", category: "Chuchería", priceUSD: 1.6, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c49", name: "Platatito", category: "Chuchería", priceUSD: 1.6, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c50", name: "Raquety PICANT", category: "Chuchería", priceUSD: 0.9, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c51", name: "NORMAL", category: "Chuchería", priceUSD: 0.9, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c52", name: "ChisKronch T", category: "Chuchería", priceUSD: 0.9, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c53", name: "Kesito", category: "Chuchería", priceUSD: 0.9, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c54", name: "BoliKruch", category: "Chuchería", priceUSD: 0.9, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c55", name: "Ruffles", category: "Chuchería", priceUSD: 1.8, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c56", name: "Chicharron", category: "Chuchería", priceUSD: 1.8, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c57", name: "Tocinetikas", category: "Chuchería", priceUSD: 1.8, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c58", name: "Yuca", category: "Chuchería", priceUSD: 1.8, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c59", name: "Tronkolate MINI", category: "Chuchería", priceUSD: 0.9, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c60", name: "Turrón Maní", category: "Chuchería", priceUSD: 0.9, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "c61", name: "Torta Manzana (1x6)", category: "Chuchería", priceUSD: 2.5, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "m1", name: "Empanada", category: "Menú", priceUSD: 1.3, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "m2", name: "Tequeñon", category: "Menú", priceUSD: 1.5, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "m3", name: "Tequeñon PROMO", category: "Menú", priceUSD: 2.0, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "m4", name: "Pizza SLICE", category: "Menú", priceUSD: 1.2, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "m5", name: "sandwich jamó y queso", category: "Menú", priceUSD: 3.0, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "m6", name: "Arepa asada", category: "Menú", priceUSD: 3.6, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "m7", name: "Dasayuno CRIOLLO", category: "Menú", priceUSD: 5.0, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "m8", name: "Desayuno AMERICANO", category: "Menú", priceUSD: 5.0, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "m9", name: "Omelet", category: "Menú", priceUSD: 4.0, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "m10", name: "Milanesa de pollo", category: "Menú", priceUSD: 9.0, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "m11", name: "Chuleta de CERDO", category: "Menú", priceUSD: 12.0, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "m12", name: "Solomo de Res", category: "Menú", priceUSD: 12.0, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "m13", name: "Chuleta AHUMADA", category: "Menú", priceUSD: 7.5, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "m14", name: "Calamares rebozados", category: "Menú", priceUSD: 15.0, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "m15", name: "Camarones al ajillo", category: "Menú", priceUSD: 15.0, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "m16", name: "Pasta Bologna", category: "Menú", priceUSD: 5.5, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "m17", name: "Parrilla mixta", category: "Menú", priceUSD: 18.0, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "m18", name: "Ensalada cesar con Pollo", category: "Menú", priceUSD: 8.0, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "m19", name: "Smash Burguer con queso", category: "Menú", priceUSD: 5.5, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "m20", name: "Hamburguesa Clasica + PAPAS", category: "Menú", priceUSD: 8.0, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "m21", name: "Hamburguesa DOBLE + PAPAS", category: "Menú", priceUSD: 10.0, stock: 0, alertaStock: 5, costo: 0 },
+  { id: "m22", name: "Club House + PAPAS", category: "Menú", priceUSD: 12.0, stock: 0, alertaStock: 5, costo: 0 },
 ];
 
-const DEFAULT_CONFIG = { tasaCambio: 800 };
+const DEFAULT_CONFIG = {
+  tasaCambio: 800,
+  nombreComercio: "Delicias A.V.P.",
+  tagline: "Restaurante · Cafetería · Coworking",
+  colorPrincipal: "#0B4F30",
+  logoTipo: "icono",
+  logoIcono: "Coffee",
+  logoImagen: null,
+  claveAdmin: "100Millonesde$",
+  claveOperador: "1212",
+};
 
 const PAYMENT_METHODS = [
   { id: "pago_movil", label: "Pago Móvil", currency: "Bs", icon: Smartphone, needsRef: true },
@@ -151,12 +163,28 @@ const PAYMENT_METHODS = [
 ];
 
 const TABS = [
-  { id: "venta", label: "Nueva Venta", icon: Receipt },
+  { id: "pedidos", label: "Pedidos", icon: Receipt },
   { id: "jornada", label: "Jornada", icon: ClipboardList },
   { id: "historial", label: "Historial", icon: BarChart3 },
   { id: "productos", label: "Productos", icon: Coffee },
   { id: "config", label: "Configuración", icon: Settings },
 ];
+
+const ICON_OPTIONS = [
+  { id: "Coffee", icon: Coffee },
+  { id: "Croissant", icon: Croissant },
+  { id: "UtensilsCrossed", icon: UtensilsCrossed },
+  { id: "ChefHat", icon: ChefHat },
+  { id: "Store", icon: Store },
+  { id: "Pizza", icon: Pizza },
+  { id: "IceCream2", icon: IceCream2 },
+  { id: "CupSoda", icon: CupSoda },
+  { id: "Cookie", icon: Cookie },
+  { id: "Sandwich", icon: Sandwich },
+];
+function iconById(id) {
+  return (ICON_OPTIONS.find((o) => o.id === id) || ICON_OPTIONS[0]).icon;
+}
 
 /* ------------------------------------------------------------------ */
 /*  Utilidades                                                         */
@@ -193,6 +221,44 @@ function formatHora(ts) {
 function paymentMeta(id) {
   return PAYMENT_METHODS.find((m) => m.id === id) || PAYMENT_METHODS[0];
 }
+// Enmascara valores sensibles cuando el modo "ocultar vista" está activo
+function mask(text, hidden) {
+  return hidden ? "••••••" : text;
+}
+// Oscurece un color hex un porcentaje dado, para estados hover
+function darkenHex(hex, amount = 0.18) {
+  try {
+    const h = hex.replace("#", "");
+    const num = parseInt(h.length === 3 ? h.split("").map((c) => c + c).join("") : h, 16);
+    let r = (num >> 16) & 255, g = (num >> 8) & 255, b = num & 255;
+    r = Math.max(0, Math.round(r * (1 - amount)));
+    g = Math.max(0, Math.round(g * (1 - amount)));
+    b = Math.max(0, Math.round(b * (1 - amount)));
+    return `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+  } catch { return hex; }
+}
+// Redimensiona y comprime una imagen subida por el usuario a un cuadrado pequeño en base64
+function resizeImageToDataURL(file, maxSize = 160, quality = 0.85) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("No se pudo leer la imagen"));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("No se pudo procesar la imagen"));
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 /* ------------------------------------------------------------------ */
 /*  App                                                                 */
@@ -200,13 +266,16 @@ function paymentMeta(id) {
 
 export default function App() {
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState("venta");
+  const [tab, setTab] = useState("pedidos");
   const [products, setProducts] = useState(DEFAULT_PRODUCTS);
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [sales, setSales] = useState([]);
+  const [mesas, setMesas] = useState([]);
   const [displayCurrency, setDisplayCurrency] = useState("USD"); // 'USD' | 'BS'
   const [toast, setToast] = useState(null);
   const [printData, setPrintData] = useState(null);
+  const [cajaAbierta, setCajaAbierta] = useState(false);
+  const [vistaOculta, setVistaOculta] = useState(false);
 
   const showToast = useCallback((text, kind = "error") => {
     setToast({ text, kind, key: Date.now() });
@@ -230,22 +299,35 @@ export default function App() {
   // Carga inicial
   useEffect(() => {
     (async () => {
-      let p = null, c = null, s = null;
+      let p = null, c = null, s = null, m = null;
       try { p = await window.storage.get(STORAGE_KEYS.PRODUCTS); } catch (e) { /* no existe aún */ }
       try { c = await window.storage.get(STORAGE_KEYS.CONFIG); } catch (e) { /* no existe aún */ }
       try { s = await window.storage.get(STORAGE_KEYS.SALES); } catch (e) { /* no existe aún */ }
+      try { m = await window.storage.get(STORAGE_KEYS.MESAS); } catch (e) { /* no existe aún */ }
 
-      const initialProducts = p ? JSON.parse(p.value) : DEFAULT_PRODUCTS;
-      const initialConfig = c ? JSON.parse(c.value) : DEFAULT_CONFIG;
+      // Los productos guardados pueden venir de una versión anterior sin
+      // "costo" — lo completamos para que el resto del código no falle.
+      const initialProducts = p
+        ? JSON.parse(p.value).map((prod) => ({ costo: 0, ...prod }))
+        : DEFAULT_PRODUCTS;
+
+      // La configuración guardada puede venir de una versión anterior sin
+      // los campos nuevos (nombre, color, logo, claves) — se completan con
+      // los valores por defecto sin perder lo que ya estaba guardado.
+      const initialConfig = c ? { ...DEFAULT_CONFIG, ...JSON.parse(c.value) } : DEFAULT_CONFIG;
+
       const initialSales = s ? JSON.parse(s.value) : [];
+      const initialMesas = m ? JSON.parse(m.value) : [];
 
       setProducts(initialProducts);
       setConfig(initialConfig);
       setSales(initialSales);
+      setMesas(initialMesas);
 
       try {
         if (!p) await window.storage.set(STORAGE_KEYS.PRODUCTS, JSON.stringify(DEFAULT_PRODUCTS));
         if (!c) await window.storage.set(STORAGE_KEYS.CONFIG, JSON.stringify(DEFAULT_CONFIG));
+        if (!m) await window.storage.set(STORAGE_KEYS.MESAS, JSON.stringify([]));
       } catch (e) { /* se reintenta en el próximo guardado */ }
 
       setLoading(false);
@@ -270,14 +352,22 @@ export default function App() {
     catch (e) { showToast("No se pudo guardar la venta. Revisa tu conexión e intenta de nuevo."); }
   }, [showToast]);
 
+  const persistMesas = useCallback(async (next) => {
+    setMesas(next);
+    try { await window.storage.set(STORAGE_KEYS.MESAS, JSON.stringify(next)); }
+    catch (e) { showToast("No se pudo guardar la mesa. Intenta de nuevo."); }
+  }, [showToast]);
+
   const resetAll = useCallback(async () => {
     try {
       await window.storage.set(STORAGE_KEYS.PRODUCTS, JSON.stringify(DEFAULT_PRODUCTS));
       await window.storage.set(STORAGE_KEYS.CONFIG, JSON.stringify(DEFAULT_CONFIG));
       await window.storage.set(STORAGE_KEYS.SALES, JSON.stringify([]));
+      await window.storage.set(STORAGE_KEYS.MESAS, JSON.stringify([]));
       setProducts(DEFAULT_PRODUCTS);
       setConfig(DEFAULT_CONFIG);
       setSales([]);
+      setMesas([]);
       showToast("Datos restablecidos.", "ok");
     } catch (e) { showToast("No se pudo restablecer los datos."); }
   }, [showToast]);
@@ -292,30 +382,50 @@ export default function App() {
     );
   }
 
+  const rootStyle = { "--ink": config.colorPrincipal, "--caramel": config.colorPrincipal, "--caramel-dark": darkenHex(config.colorPrincipal, 0.22) };
+
+  if (!cajaAbierta) {
+    return (
+      <div className="gy-root" style={rootStyle}>
+        <StyleBlock />
+        <AperturaCaja config={config} onAbrir={() => setCajaAbierta(true)} />
+      </div>
+    );
+  }
+
   return (
-    <div className="gy-root">
+    <div className="gy-root" style={rootStyle}>
       <StyleBlock />
-      <Header displayCurrency={displayCurrency} setDisplayCurrency={setDisplayCurrency} tasa={config.tasaCambio} />
+      <Header
+        config={config}
+        displayCurrency={displayCurrency}
+        setDisplayCurrency={setDisplayCurrency}
+        vistaOculta={vistaOculta}
+        setVistaOculta={setVistaOculta}
+        onCerrarCaja={() => setCajaAbierta(false)}
+      />
       <TabNav tab={tab} setTab={setTab} />
 
       <main className="gy-main">
-        {tab === "venta" && (
-          <NuevaVentaTab
+        {tab === "pedidos" && (
+          <PedidosTab
             products={products}
             config={config}
             sales={sales}
+            mesas={mesas}
             persistSales={persistSales}
             persistProducts={persistProducts}
+            persistMesas={persistMesas}
             displayCurrency={displayCurrency}
             showToast={showToast}
             triggerPrint={triggerPrint}
           />
         )}
         {tab === "jornada" && (
-          <JornadaTab sales={sales} persistSales={persistSales} triggerPrint={triggerPrint} />
+          <JornadaTab sales={sales} persistSales={persistSales} triggerPrint={triggerPrint} vistaOculta={vistaOculta} config={config} />
         )}
         {tab === "historial" && (
-          <HistorialTab sales={sales} />
+          <HistorialTab sales={sales} vistaOculta={vistaOculta} />
         )}
         {tab === "productos" && (
           <ProductosTab
@@ -344,30 +454,87 @@ export default function App() {
         </div>
       )}
 
-      <PrintableTicket data={printData} />
+      <PrintableTicket data={printData} nombreComercio={config.nombreComercio} tagline={config.tagline} />
     </div>
   );
 }
 
 /* ------------------------------------------------------------------ */
+/*  Apertura de caja (clave de administrador)                           */
+/* ------------------------------------------------------------------ */
+
+function AperturaCaja({ config, onAbrir }) {
+  const [clave, setClave] = useState("");
+  const [error, setError] = useState(false);
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    if (clave === config.claveAdmin) {
+      onAbrir();
+    } else {
+      setError(true);
+    }
+  }
+
+  return (
+    <div className="gy-apertura-wrap">
+      <div className="gy-apertura-card">
+        <div className="gy-lock-icon"><ShieldCheck size={24} /></div>
+        <h1>{config.nombreComercio}</h1>
+        <h3>Apertura de caja</h3>
+        <p>Ingresa la clave de administrador para iniciar la jornada.</p>
+        <form onSubmit={handleSubmit} className="gy-lock-form">
+          <input
+            type="password"
+            className="gy-input"
+            placeholder="Clave de administrador"
+            value={clave}
+            onChange={(e) => { setClave(e.target.value); setError(false); }}
+            autoFocus
+          />
+          <button type="submit" className="gy-btn-primary"><Unlock size={15} /> Abrir caja</button>
+        </form>
+        {error && <p className="gy-error-text">Clave incorrecta.</p>}
+      </div>
+    </div>
+  );
+}
+
+
+/* ------------------------------------------------------------------ */
 /*  Header + navegación                                                */
 /* ------------------------------------------------------------------ */
 
-function Header({ displayCurrency, setDisplayCurrency, tasa }) {
+function Header({ config, displayCurrency, setDisplayCurrency, vistaOculta, setVistaOculta, onCerrarCaja }) {
+  const BrandIcon = iconById(config.logoIcono);
   return (
     <header className="gy-header">
       <div className="gy-brand">
-        <span className="gy-brand-icon"><Coffee size={22} /></span>
+        <span className="gy-brand-icon">
+          {config.logoTipo === "imagen" && config.logoImagen ? (
+            <img src={config.logoImagen} alt="Logo" />
+          ) : (
+            <BrandIcon size={22} />
+          )}
+        </span>
         <div>
-          <h1>Delicias A.V.P.</h1>
-          <p>Restaurante · Cafetería · Coworking</p>
+          <h1>{config.nombreComercio}</h1>
+          <p>{config.tagline}</p>
         </div>
       </div>
       <div className="gy-header-right">
         <div className="gy-rate-pill">
           <ArrowLeftRight size={14} />
-          <span>1$ = {tasa.toLocaleString("es-VE")} Bs</span>
+          <span>{vistaOculta ? "1$ = •••• Bs" : `1$ = ${config.tasaCambio.toLocaleString("es-VE")} Bs`}</span>
         </div>
+        <button
+          type="button"
+          className="gy-icon-toggle"
+          onClick={() => setVistaOculta((v) => !v)}
+          title={vistaOculta ? "Mostrar tasa y totales" : "Ocultar tasa y totales"}
+        >
+          {vistaOculta ? <EyeOff size={16} /> : <Eye size={16} />}
+        </button>
         <button
           type="button"
           className="gy-currency-toggle"
@@ -376,6 +543,9 @@ function Header({ displayCurrency, setDisplayCurrency, tasa }) {
         >
           <span className={displayCurrency === "USD" ? "on" : ""}>$</span>
           <span className={displayCurrency === "BS" ? "on" : ""}>Bs</span>
+        </button>
+        <button type="button" className="gy-icon-toggle" onClick={onCerrarCaja} title="Cerrar caja">
+          <Lock size={16} />
         </button>
       </div>
     </header>
@@ -407,15 +577,15 @@ function TabNav({ tab, setTab }) {
 /*  Tique imprimible (solo visible en @media print)                     */
 /* ------------------------------------------------------------------ */
 
-function PrintableTicket({ data }) {
+function PrintableTicket({ data, nombreComercio, tagline }) {
   if (!data) return null;
   const pago = data.formaPago ? paymentMeta(data.formaPago) : null;
   return (
     <div className="gy-print-ticket">
-      <div className="gy-print-head">DELICIAS A.V.P.</div>
-      <div className="gy-print-sub">Restaurante · Cafetería · Coworking</div>
+      <div className="gy-print-head">{(nombreComercio || "").toUpperCase()}</div>
+      <div className="gy-print-sub">{tagline}</div>
       <div className="gy-print-line" />
-      <div className="gy-print-sub">Tique #{data.numeroTicket || "—"}</div>
+      <div className="gy-print-sub">Tique #{data.numeroTicket || "—"}{data.mesa ? ` · ${data.mesa}` : ""}</div>
       <div className="gy-print-sub">{formatFechaLarga(data.fecha)}</div>
       <div className="gy-print-line" />
       {(data.items || []).map((i) => (
@@ -437,7 +607,108 @@ function PrintableTicket({ data }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Tab: Nueva Venta                                                    */
+/*  Modal de clave de operador (acciones de corrección)                 */
+/* ------------------------------------------------------------------ */
+
+function OperatorGateModal({ open, config, title, mensaje, onCancel, onConfirm }) {
+  const [pin, setPin] = useState("");
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (open) { setPin(""); setError(false); }
+  }, [open]);
+
+  if (!open) return null;
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    if (pin === config.claveOperador) {
+      onConfirm();
+    } else {
+      setError(true);
+    }
+  }
+
+  return (
+    <div className="gy-modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onCancel(); }}>
+      <div className="gy-modal">
+        <div className="gy-lock-icon"><KeyRound size={20} /></div>
+        <h3>{title || "Clave de operador"}</h3>
+        <p>{mensaje || "Esta acción requiere la clave de operador."}</p>
+        <form onSubmit={handleSubmit} className="gy-lock-form">
+          <input
+            type="password"
+            inputMode="numeric"
+            maxLength={4}
+            className="gy-input gy-input-pin"
+            placeholder="••••"
+            value={pin}
+            onChange={(e) => { setPin(e.target.value.replace(/\D/g, "")); setError(false); }}
+            autoFocus
+          />
+          <div className="gy-modal-actions">
+            <button type="button" className="gy-btn-ghost" onClick={onCancel}><X size={15} /> Cancelar</button>
+            <button type="submit" className="gy-btn-primary"><Check size={15} /> Confirmar</button>
+          </div>
+        </form>
+        {error && <p className="gy-error-text">Clave incorrecta.</p>}
+      </div>
+    </div>
+  );
+}
+
+
+/* ------------------------------------------------------------------ */
+/*  Tab: Pedidos (Venta directa + Mesas)                                */
+/* ------------------------------------------------------------------ */
+
+function PedidosTab({ products, config, sales, mesas, persistSales, persistProducts, persistMesas, displayCurrency, showToast, triggerPrint }) {
+  const [modo, setModo] = useState("directa"); // 'directa' | 'mesas'
+
+  return (
+    <div className="gy-stack">
+      <div className="gy-submode-toggle">
+        <button type="button" className={modo === "directa" ? "active" : ""} onClick={() => setModo("directa")}>
+          <Receipt size={15} /> Venta directa
+        </button>
+        <button type="button" className={modo === "mesas" ? "active" : ""} onClick={() => setModo("mesas")}>
+          <LayoutGrid size={15} /> Mesas
+        </button>
+      </div>
+
+      {modo === "directa" && (
+        <NuevaVentaTab
+          products={products}
+          config={config}
+          sales={sales}
+          persistSales={persistSales}
+          persistProducts={persistProducts}
+          displayCurrency={displayCurrency}
+          showToast={showToast}
+          triggerPrint={triggerPrint}
+        />
+      )}
+
+      {modo === "mesas" && (
+        <MesasPanel
+          products={products}
+          config={config}
+          sales={sales}
+          mesas={mesas}
+          persistSales={persistSales}
+          persistProducts={persistProducts}
+          persistMesas={persistMesas}
+          displayCurrency={displayCurrency}
+          showToast={showToast}
+          triggerPrint={triggerPrint}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Tab: Nueva Venta (venta directa, de una sola vez)                   */
 /* ------------------------------------------------------------------ */
 
 function NuevaVentaTab({ products, config, sales, persistSales, persistProducts, displayCurrency, showToast, triggerPrint }) {
@@ -684,7 +955,7 @@ function NuevaVentaTab({ products, config, sales, persistSales, persistProducts,
         <div className="gy-ticket ticket-edge-bottom">
           <div className="gy-ticket-head">
             <Coffee size={18} />
-            <span>Delicias A.V.P.</span>
+            <span>{config.nombreComercio}</span>
           </div>
           <div className="gy-ticket-sub">
             <span>Tique</span>
@@ -747,13 +1018,415 @@ function NuevaVentaTab({ products, config, sales, persistSales, persistProducts,
   );
 }
 
+
+/* ------------------------------------------------------------------ */
+/*  Mesas (cuentas abiertas)                                            */
+/* ------------------------------------------------------------------ */
+
+function MesasPanel({ products, config, sales, mesas, persistSales, persistProducts, persistMesas, displayCurrency, showToast, triggerPrint }) {
+  const [selectedId, setSelectedId] = useState(null);
+  const [nuevaMesaNombre, setNuevaMesaNombre] = useState("");
+  const [showNueva, setShowNueva] = useState(false);
+  const [gateAction, setGateAction] = useState(null); // función pendiente tras validar clave de operador
+
+  const selected = mesas.find((m) => m.id === selectedId) || null;
+
+  async function abrirMesa() {
+    const nombre = nuevaMesaNombre.trim();
+    if (!nombre) return;
+    const nueva = { id: uid("mesa"), nombre, items: [], fecha: todayISO(), createdAt: new Date().toISOString() };
+    await persistMesas([...mesas, nueva]);
+    setNuevaMesaNombre("");
+    setShowNueva(false);
+    setSelectedId(nueva.id);
+  }
+
+  function pedirClaveOperador(accion) {
+    setGateAction(() => accion);
+  }
+
+  async function borrarMesa(id) {
+    await persistMesas(mesas.filter((m) => m.id !== id));
+    if (selectedId === id) setSelectedId(null);
+  }
+
+  if (selected) {
+    return (
+      <>
+        <MesaDetalle
+          mesa={selected}
+          products={products}
+          config={config}
+          sales={sales}
+          persistSales={persistSales}
+          persistProducts={persistProducts}
+          persistMesas={persistMesas}
+          mesas={mesas}
+          displayCurrency={displayCurrency}
+          showToast={showToast}
+          triggerPrint={triggerPrint}
+          onVolver={() => setSelectedId(null)}
+          onCerrada={() => setSelectedId(null)}
+        />
+      </>
+    );
+  }
+
+  return (
+    <div className="gy-stack">
+      <div className="gy-mesas-toolbar">
+        <p className="gy-panel-help" style={{ margin: 0 }}>
+          Abre una mesa para ir agregando productos durante el consumo, y cóbrala cuando el cliente pida la cuenta.
+        </p>
+        <button type="button" className="gy-btn-primary" onClick={() => setShowNueva((v) => !v)}>
+          <Plus size={16} /> Nueva mesa
+        </button>
+      </div>
+
+      {showNueva && (
+        <div className="gy-add-panel gy-add-panel-mesa">
+          <div className="gy-field" style={{ marginBottom: 0 }}>
+            <label>Nombre o número de mesa</label>
+            <input
+              className="gy-input"
+              placeholder="Ej: Mesa 4, Terraza 2, Para llevar - Ana"
+              value={nuevaMesaNombre}
+              onChange={(e) => setNuevaMesaNombre(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") abrirMesa(); }}
+              autoFocus
+            />
+          </div>
+          <button type="button" className="gy-btn-primary" onClick={abrirMesa}><Check size={15} /> Abrir</button>
+        </div>
+      )}
+
+      {mesas.length === 0 ? (
+        <p className="gy-empty-state">No hay mesas abiertas en este momento.</p>
+      ) : (
+        <div className="gy-mesas-grid">
+          {mesas.map((m) => {
+            const totalUSD = m.items.reduce((s, i) => s + i.priceUSD * i.qty, 0);
+            const totalBs = totalUSD * config.tasaCambio;
+            const totalItems = m.items.reduce((s, i) => s + i.qty, 0);
+            return (
+              <div className="gy-mesa-card" key={m.id}>
+                <button type="button" className="gy-mesa-card-main" onClick={() => setSelectedId(m.id)}>
+                  <span className="gy-mesa-name">{m.nombre}</span>
+                  <span className="gy-mesa-items">{totalItems === 0 ? "Sin productos aún" : `${totalItems} producto${totalItems === 1 ? "" : "s"}`}</span>
+                  <span className="gy-mesa-total">{formatUSD(totalUSD)} · {formatBs(totalBs)}</span>
+                </button>
+                {gateAction && gateAction.__mesaId === m.id ? null : (
+                  <button
+                    type="button"
+                    className="gy-icon-btn-danger"
+                    title="Descartar mesa"
+                    onClick={() => pedirClaveOperador(Object.assign(() => borrarMesa(m.id), { __mesaId: m.id }))}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <OperatorGateModal
+        open={!!gateAction}
+        config={config}
+        title="Descartar mesa"
+        mensaje="Se requiere la clave de operador para descartar una mesa abierta."
+        onCancel={() => setGateAction(null)}
+        onConfirm={() => { const fn = gateAction; setGateAction(null); fn && fn(); }}
+      />
+    </div>
+  );
+}
+
+function MesaDetalle({ mesa, products, config, sales, persistSales, persistProducts, persistMesas, mesas, displayCurrency, showToast, triggerPrint, onVolver, onCerrada }) {
+  const [query, setQuery] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [showCobro, setShowCobro] = useState(false);
+  const [numeroTicket, setNumeroTicket] = useState("");
+  const [formaPago, setFormaPago] = useState(null);
+  const [referencia, setReferencia] = useState("");
+  const [errors, setErrors] = useState({});
+  const inputRef = useRef(null);
+
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return products.filter((p) => p.name.toLowerCase().includes(q)).slice(0, 8);
+  }, [query, products]);
+
+  useEffect(() => { setActiveIndex(0); }, [query]);
+
+  async function updateItems(nextItems) {
+    const nextMesas = mesas.map((m) => (m.id === mesa.id ? { ...m, items: nextItems } : m));
+    await persistMesas(nextMesas);
+  }
+
+  function addToCart(product) {
+    if (typeof product.stock === "number" && product.stock <= 0) {
+      showToast(`«${product.name}» figura sin stock en el inventario.`, "error");
+    }
+    const found = mesa.items.find((i) => i.productId === product.id);
+    const next = found
+      ? mesa.items.map((i) => (i.productId === product.id ? { ...i, qty: i.qty + 1 } : i))
+      : [...mesa.items, { productId: product.id, name: product.name, priceUSD: product.priceUSD, qty: 1 }];
+    updateItems(next);
+    setQuery("");
+    setShowDropdown(false);
+    inputRef.current?.focus();
+  }
+
+  function changeQty(productId, delta) {
+    const next = mesa.items
+      .map((i) => (i.productId === productId ? { ...i, qty: i.qty + delta } : i))
+      .filter((i) => i.qty > 0);
+    updateItems(next);
+  }
+
+  function removeItem(productId) {
+    updateItems(mesa.items.filter((i) => i.productId !== productId));
+  }
+
+  const totalUSD = useMemo(() => mesa.items.reduce((sum, i) => sum + i.priceUSD * i.qty, 0), [mesa.items]);
+  const totalBs = totalUSD * config.tasaCambio;
+  const pago = formaPago ? paymentMeta(formaPago) : null;
+
+  function handleKeyDown(e) {
+    if (!showDropdown || results.length === 0) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); setActiveIndex((i) => Math.min(i + 1, results.length - 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setActiveIndex((i) => Math.max(i - 1, 0)); }
+    else if (e.key === "Enter") { e.preventDefault(); addToCart(results[activeIndex]); }
+    else if (e.key === "Escape") { setShowDropdown(false); }
+  }
+
+  function abrirCobro() {
+    const count = sales.filter((s) => s.fecha === todayISO()).length;
+    setNumeroTicket(String(count + 1));
+    setShowCobro(true);
+  }
+
+  function validate() {
+    const errs = {};
+    if (mesa.items.length === 0) errs.cart = "Agrega al menos un producto antes de cobrar.";
+    if (!numeroTicket.trim()) errs.numeroTicket = "Coloca el número de tique.";
+    if (!formaPago) errs.formaPago = "Selecciona la forma de pago.";
+    if (formaPago === "pago_movil" && !referencia.trim()) errs.referencia = "Coloca el número de referencia.";
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
+
+  async function handleCobrar() {
+    if (!validate()) return;
+    const fecha = todayISO();
+    const nueva = {
+      id: uid("venta"),
+      fecha,
+      numeroTicket: numeroTicket.trim(),
+      mesa: mesa.nombre,
+      items: mesa.items,
+      totalUSD,
+      totalBs,
+      tasaUsada: config.tasaCambio,
+      formaPago,
+      referencia: formaPago === "pago_movil" ? referencia.trim() : "",
+      timestamp: new Date().toISOString(),
+    };
+    await persistSales([...sales, nueva]);
+
+    const nextProducts = products.map((p) => {
+      const item = mesa.items.find((i) => i.productId === p.id);
+      if (!item || typeof p.stock !== "number") return p;
+      return { ...p, stock: Math.max(0, p.stock - item.qty) };
+    });
+    await persistProducts(nextProducts);
+
+    await persistMesas(mesas.filter((m) => m.id !== mesa.id));
+    showToast(`Mesa «${mesa.nombre}» cobrada — tique #${nueva.numeroTicket}.`, "ok");
+    onCerrada();
+  }
+
+  function handlePrintPreview() {
+    triggerPrint({
+      numeroTicket: numeroTicket || "—",
+      fecha: todayISO(),
+      mesa: mesa.nombre,
+      items: mesa.items,
+      totalUSD,
+      totalBs,
+      formaPago,
+      referencia,
+    });
+  }
+
+  return (
+    <div className="gy-venta-grid">
+      <section className="gy-panel">
+        <button type="button" className="gy-btn-ghost gy-back-btn" onClick={onVolver}>
+          <ArrowLeft size={15} /> Volver a mesas
+        </button>
+
+        <div className="gy-field gy-search-field">
+          <label>Agregar producto a {mesa.nombre}</label>
+          <div className="gy-search-box">
+            <Search size={16} />
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Escribe el nombre…"
+              value={query}
+              onChange={(e) => { setQuery(e.target.value); setShowDropdown(true); }}
+              onFocus={() => setShowDropdown(true)}
+              onBlur={() => setTimeout(() => setShowDropdown(false), 120)}
+              onKeyDown={handleKeyDown}
+              className="gy-search-input"
+            />
+          </div>
+          {showDropdown && query && (
+            <div className="gy-dropdown">
+              {results.length === 0 && <div className="gy-dropdown-empty">Sin coincidencias para “{query}”.</div>}
+              {results.map((p, idx) => (
+                <button
+                  type="button"
+                  key={p.id}
+                  className={`gy-dropdown-item ${idx === activeIndex ? "active" : ""}`}
+                  onMouseDown={() => addToCart(p)}
+                  onMouseEnter={() => setActiveIndex(idx)}
+                >
+                  <div>
+                    <span className="gy-dd-name">{p.name}</span>
+                    <span className="gy-dd-cat">{p.category}</span>
+                  </div>
+                  <span className="gy-dd-price">
+                    {displayCurrency === "USD" ? formatUSD(p.priceUSD) : formatBs(p.priceUSD * config.tasaCambio)}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        {errors.cart && <p className="gy-error-text">{errors.cart}</p>}
+
+        {showCobro && (
+          <>
+            <div className="gy-field">
+              <label>Número de tique</label>
+              <input className="gy-input" value={numeroTicket} onChange={(e) => setNumeroTicket(e.target.value)} />
+              {errors.numeroTicket && <p className="gy-error-text">{errors.numeroTicket}</p>}
+            </div>
+            <div className="gy-field">
+              <label>Forma de pago</label>
+              <div className="gy-payment-grid">
+                {PAYMENT_METHODS.map((m) => {
+                  const Icon = m.icon;
+                  return (
+                    <button
+                      type="button"
+                      key={m.id}
+                      className={`gy-payment-btn ${formaPago === m.id ? "active" : ""}`}
+                      onClick={() => setFormaPago(m.id)}
+                    >
+                      <Icon size={16} />
+                      <span>{m.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {errors.formaPago && <p className="gy-error-text">{errors.formaPago}</p>}
+            </div>
+            {formaPago === "pago_movil" && (
+              <div className="gy-field">
+                <label>Número de referencia (Pago Móvil)</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="Ej: 004521"
+                  value={referencia}
+                  onChange={(e) => setReferencia(e.target.value)}
+                  className="gy-input"
+                />
+                {errors.referencia && <p className="gy-error-text">{errors.referencia}</p>}
+              </div>
+            )}
+          </>
+        )}
+      </section>
+
+      <section className="gy-ticket-wrap">
+        <div className="gy-ticket ticket-edge-bottom">
+          <div className="gy-ticket-head">
+            <Coffee size={18} />
+            <span>{config.nombreComercio}</span>
+          </div>
+          <div className="gy-ticket-sub muted">{mesa.nombre}</div>
+
+          <div className="gy-ticket-items">
+            {mesa.items.length === 0 && <p className="gy-ticket-empty">Aún no hay productos agregados.</p>}
+            {mesa.items.map((i) => (
+              <div className="gy-ticket-item" key={i.productId}>
+                <div className="gy-ticket-item-info">
+                  <span className="gy-ticket-item-name">{i.name}</span>
+                  <span className="gy-ticket-item-price">
+                    {displayCurrency === "USD" ? formatUSD(i.priceUSD) : formatBs(i.priceUSD * config.tasaCambio)} c/u
+                  </span>
+                </div>
+                <div className="gy-qty-stepper">
+                  <button type="button" onClick={() => changeQty(i.productId, -1)}><Minus size={13} /></button>
+                  <span>{i.qty}</span>
+                  <button type="button" onClick={() => changeQty(i.productId, 1)}><Plus size={13} /></button>
+                </div>
+                <button type="button" className="gy-remove-item" onClick={() => removeItem(i.productId)}>
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="gy-ticket-totals">
+            <div className="gy-total-row"><span>Total $</span><strong>{formatUSD(totalUSD)}</strong></div>
+            <div className="gy-total-row"><span>Total Bs</span><strong>{formatBs(totalBs)}</strong></div>
+          </div>
+
+          {pago && (
+            <div className="gy-ticket-pago">
+              <pago.icon size={14} />
+              <span>{pago.label}</span>
+              {pago.id === "pago_movil" && referencia && <span className="gy-ticket-ref">Ref. {referencia}</span>}
+            </div>
+          )}
+        </div>
+
+        <div className="gy-ticket-actions">
+          <button type="button" className="gy-btn-ghost gy-print-btn" onClick={handlePrintPreview} disabled={mesa.items.length === 0}>
+            <Printer size={16} /> Imprimir
+          </button>
+          {!showCobro ? (
+            <button type="button" className="gy-btn-primary gy-save-btn" onClick={abrirCobro} disabled={mesa.items.length === 0}>
+              <Receipt size={17} /> Cobrar / cerrar cuenta
+            </button>
+          ) : (
+            <button type="button" className="gy-btn-primary gy-save-btn" onClick={handleCobrar}>
+              <Check size={17} /> Confirmar cobro
+            </button>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+
 /* ------------------------------------------------------------------ */
 /*  Tab: Jornada (control diario)                                       */
 /* ------------------------------------------------------------------ */
 
-function JornadaTab({ sales, persistSales, triggerPrint }) {
+function JornadaTab({ sales, persistSales, triggerPrint, vistaOculta, config }) {
   const [fecha, setFecha] = useState(todayISO());
-  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [gateSaleId, setGateSaleId] = useState(null);
 
   const ventasDia = useMemo(
     () => sales.filter((s) => s.fecha === fecha).sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
@@ -777,7 +1450,7 @@ function JornadaTab({ sales, persistSales, triggerPrint }) {
 
   async function handleDelete(id) {
     await persistSales(sales.filter((s) => s.id !== id));
-    setConfirmDeleteId(null);
+    setGateSaleId(null);
   }
 
   return (
@@ -794,11 +1467,11 @@ function JornadaTab({ sales, persistSales, triggerPrint }) {
         </div>
         <div className="gy-card">
           <span className="gy-card-label">Total $</span>
-          <span className="gy-card-value">{formatUSD(totalUSD)}</span>
+          <span className="gy-card-value">{mask(formatUSD(totalUSD), vistaOculta)}</span>
         </div>
         <div className="gy-card">
           <span className="gy-card-label">Total Bs</span>
-          <span className="gy-card-value">{formatBs(totalBs)}</span>
+          <span className="gy-card-value">{mask(formatBs(totalBs), vistaOculta)}</span>
         </div>
       </div>
 
@@ -810,7 +1483,7 @@ function JornadaTab({ sales, persistSales, triggerPrint }) {
             <div className="gy-method-card" key={m.id}>
               <div className="gy-method-head"><Icon size={15} /><span>{m.label}</span></div>
               <span className="gy-method-count">{d.count} tique{d.count === 1 ? "" : "s"}</span>
-              <span className="gy-method-amount">{m.currency === "Bs" ? formatBs(d.bs) : formatUSD(d.usd)}</span>
+              <span className="gy-method-amount">{mask(m.currency === "Bs" ? formatBs(d.bs) : formatUSD(d.usd), vistaOculta)}</span>
             </div>
           );
         })}
@@ -826,12 +1499,12 @@ function JornadaTab({ sales, persistSales, triggerPrint }) {
           return (
             <div className="gy-sale-row" key={v.id}>
               <div className="gy-sale-main">
-                <span className="gy-sale-ticket">#{v.numeroTicket}</span>
+                <span className="gy-sale-ticket">#{v.numeroTicket}{v.mesa ? ` · ${v.mesa}` : ""}</span>
                 <span className="gy-sale-hora">{formatHora(v.timestamp)}</span>
                 <span className="gy-sale-items">{v.items.map((i) => `${i.qty}× ${i.name}`).join(", ")}</span>
               </div>
               <div className="gy-sale-side">
-                <span className="gy-sale-total">{formatUSD(v.totalUSD)} · {formatBs(v.totalBs)}</span>
+                <span className="gy-sale-total">{mask(`${formatUSD(v.totalUSD)} · ${formatBs(v.totalBs)}`, vistaOculta)}</span>
                 <span className="gy-sale-pago"><PagoIcon size={13} /> {pago.label}{v.referencia ? ` · Ref. ${v.referencia}` : ""}</span>
               </div>
               <button
@@ -839,26 +1512,28 @@ function JornadaTab({ sales, persistSales, triggerPrint }) {
                 className="gy-icon-btn"
                 title="Imprimir tique"
                 onClick={() => triggerPrint({
-                  numeroTicket: v.numeroTicket, fecha: v.fecha, items: v.items,
+                  numeroTicket: v.numeroTicket, fecha: v.fecha, mesa: v.mesa, items: v.items,
                   totalUSD: v.totalUSD, totalBs: v.totalBs, formaPago: v.formaPago, referencia: v.referencia,
                 })}
               >
                 <Printer size={15} />
               </button>
-              {confirmDeleteId === v.id ? (
-                <div className="gy-confirm-inline">
-                  <button type="button" className="gy-btn-danger-sm" onClick={() => handleDelete(v.id)}>Eliminar</button>
-                  <button type="button" className="gy-btn-ghost-sm" onClick={() => setConfirmDeleteId(null)}>Cancelar</button>
-                </div>
-              ) : (
-                <button type="button" className="gy-icon-btn-danger" onClick={() => setConfirmDeleteId(v.id)} title="Eliminar venta">
-                  <Trash2 size={15} />
-                </button>
-              )}
+              <button type="button" className="gy-icon-btn-danger" onClick={() => setGateSaleId(v.id)} title="Anular venta">
+                <Trash2 size={15} />
+              </button>
             </div>
           );
         })}
       </div>
+
+      <OperatorGateModal
+        open={!!gateSaleId}
+        config={config}
+        title="Anular tique"
+        mensaje="Se requiere la clave de operador para anular una venta ya registrada."
+        onCancel={() => setGateSaleId(null)}
+        onConfirm={() => handleDelete(gateSaleId)}
+      />
     </div>
   );
 }
@@ -867,7 +1542,18 @@ function JornadaTab({ sales, persistSales, triggerPrint }) {
 /*  Tab: Historial mensual                                              */
 /* ------------------------------------------------------------------ */
 
-function HistorialTab({ sales }) {
+function ChartBsLabel(props) {
+  const { x, y, width, value } = props;
+  if (value === undefined || value === null || !width) return null;
+  const text = `${Number(value).toLocaleString("es-VE", { maximumFractionDigits: 0 })} Bs`;
+  return (
+    <text x={x + width / 2} y={y + 14} textAnchor="middle" fontSize={8.5} fill="#FFFFFF" fontWeight={600}>
+      {text}
+    </text>
+  );
+}
+
+function HistorialTab({ sales, vistaOculta }) {
   const [mes, setMes] = useState(thisMonthKey());
 
   const ventasMes = useMemo(() => sales.filter((s) => s.fecha.startsWith(mes)), [sales, mes]);
@@ -898,7 +1584,14 @@ function HistorialTab({ sales }) {
     return map;
   }, [ventasMes]);
 
-  const chartData = porDia.map((d) => ({ dia: d.fecha.slice(8, 10), Bs: Math.round(d.totalBs) }));
+  // El monto en $ y en Bs de cada día queda fijo con lo que ya se guardó en
+  // cada venta (no se recalcula con la tasa actual), así que cambiar la tasa
+  // de cambio hoy no altera los días ya cerrados.
+  const chartData = porDia.map((d) => ({
+    dia: d.fecha.slice(8, 10),
+    USD: Math.round(d.totalUSD * 100) / 100,
+    Bs: Math.round(d.totalBs),
+  }));
 
   return (
     <div className="gy-stack">
@@ -914,30 +1607,36 @@ function HistorialTab({ sales }) {
         </div>
         <div className="gy-card">
           <span className="gy-card-label">Total $</span>
-          <span className="gy-card-value">{formatUSD(totalUSD)}</span>
+          <span className="gy-card-value">{mask(formatUSD(totalUSD), vistaOculta)}</span>
         </div>
         <div className="gy-card">
           <span className="gy-card-label">Total Bs</span>
-          <span className="gy-card-value">{formatBs(totalBs)}</span>
+          <span className="gy-card-value">{mask(formatBs(totalBs), vistaOculta)}</span>
         </div>
       </div>
 
       {chartData.length > 0 && (
         <div className="gy-chart-box">
-          <span className="gy-chart-title"><TrendingUp size={14} /> Ventas por día (Bs)</span>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E1DAC9" vertical={false} />
-              <XAxis dataKey="dia" tick={{ fontSize: 11, fill: "#6F6659" }} axisLine={{ stroke: "#E1DAC9" }} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: "#6F6659" }} axisLine={false} tickLine={false} width={44} />
-              <Tooltip
-                formatter={(v) => [`${Number(v).toLocaleString("es-VE")} Bs`, "Total"]}
-                labelFormatter={(l) => `Día ${l}`}
-                contentStyle={{ borderRadius: 10, border: "1px solid #E1DAC9", fontSize: 12 }}
-              />
-              <Bar dataKey="Bs" fill="#2E6B47" radius={[5, 5, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <span className="gy-chart-title"><TrendingUp size={14} /> Ventas por día ($, con el equivalente en Bs de cada venta)</span>
+          {vistaOculta ? (
+            <p className="gy-empty-state">Vista oculta — desactiva el ícono del ojo para ver el gráfico.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E1DAC9" vertical={false} />
+                <XAxis dataKey="dia" tick={{ fontSize: 11, fill: "#6F6659" }} axisLine={{ stroke: "#E1DAC9" }} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: "#6F6659" }} axisLine={false} tickLine={false} width={44} tickFormatter={(v) => `$${v}`} />
+                <Tooltip
+                  formatter={(v, name) => name === "USD" ? [`$${Number(v).toFixed(2)}`, "Total $"] : [`${Number(v).toLocaleString("es-VE")} Bs`, "Total Bs"]}
+                  labelFormatter={(l) => `Día ${l}`}
+                  contentStyle={{ borderRadius: 10, border: "1px solid #E1DAC9", fontSize: 12 }}
+                />
+                <Bar dataKey="USD" fill="#2E6B47" radius={[5, 5, 0, 0]}>
+                  <LabelList dataKey="Bs" content={<ChartBsLabel />} />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
       )}
 
@@ -949,7 +1648,7 @@ function HistorialTab({ sales }) {
             <div className="gy-method-card" key={m.id}>
               <div className="gy-method-head"><Icon size={15} /><span>{m.label}</span></div>
               <span className="gy-method-count">{d.count} tique{d.count === 1 ? "" : "s"}</span>
-              <span className="gy-method-amount">{m.currency === "Bs" ? formatBs(d.bs) : formatUSD(d.usd)}</span>
+              <span className="gy-method-amount">{mask(m.currency === "Bs" ? formatBs(d.bs) : formatUSD(d.usd), vistaOculta)}</span>
             </div>
           );
         })}
@@ -968,8 +1667,8 @@ function HistorialTab({ sales }) {
                 <tr key={d.fecha}>
                   <td>{formatFechaLarga(d.fecha)}</td>
                   <td>{d.tickets}</td>
-                  <td>{formatUSD(d.totalUSD)}</td>
-                  <td>{formatBs(d.totalBs)}</td>
+                  <td>{mask(formatUSD(d.totalUSD), vistaOculta)}</td>
+                  <td>{mask(formatBs(d.totalBs), vistaOculta)}</td>
                 </tr>
               ))}
             </tbody>
@@ -980,6 +1679,7 @@ function HistorialTab({ sales }) {
   );
 }
 
+
 /* ------------------------------------------------------------------ */
 /*  Tab: Productos                                                      */
 /* ------------------------------------------------------------------ */
@@ -988,9 +1688,18 @@ function ProductosTab({ products, persistProducts, config, displayCurrency }) {
   const [filtro, setFiltro] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [draft, setDraft] = useState({});
-  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
   const [newProduct, setNewProduct] = useState({ name: "", category: CATEGORIAS_BASE[0], price: "" });
+  const [collapsed, setCollapsed] = useState(() => new Set());
+  const [gateAction, setGateAction] = useState(null);
+
+  function toggleCollapsed(cat) {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat); else next.add(cat);
+      return next;
+    });
+  }
 
   const categorias = useMemo(() => {
     const set = new Set(CATEGORIAS_BASE);
@@ -1026,25 +1735,34 @@ function ProductosTab({ products, persistProducts, config, displayCurrency }) {
   }
   function cancelEdit() { setEditingId(null); setDraft({}); }
 
+  function pedirClave(accion) {
+    setGateAction(() => accion);
+  }
+
   async function saveEdit(id) {
     const priceUSD = toUSD(draft.price);
-    const next = products.map((p) => (p.id === id ? { ...p, name: draft.name.trim() || p.name, category: draft.category, priceUSD } : p));
-    await persistProducts(next);
-    cancelEdit();
+    pedirClave(async () => {
+      const next = products.map((p) => (p.id === id ? { ...p, name: draft.name.trim() || p.name, category: draft.category, priceUSD } : p));
+      await persistProducts(next);
+      cancelEdit();
+    });
   }
 
-  async function handleDelete(id) {
-    await persistProducts(products.filter((p) => p.id !== id));
-    setConfirmDeleteId(null);
+  function handleDelete(id) {
+    pedirClave(async () => {
+      await persistProducts(products.filter((p) => p.id !== id));
+    });
   }
 
-  async function handleAdd() {
+  function handleAdd() {
     if (!newProduct.name.trim()) return;
     const priceUSD = toUSD(newProduct.price);
-    const next = [...products, { id: uid("prod"), name: newProduct.name.trim(), category: newProduct.category, priceUSD, stock: 0, alertaStock: 5 }];
-    await persistProducts(next);
-    setNewProduct({ name: "", category: newProduct.category, price: "" });
-    setShowAdd(false);
+    pedirClave(async () => {
+      const next = [...products, { id: uid("prod"), name: newProduct.name.trim(), category: newProduct.category, priceUSD, stock: 0, alertaStock: 5, costo: 0 }];
+      await persistProducts(next);
+      setNewProduct({ name: "", category: newProduct.category, price: "" });
+      setShowAdd(false);
+    });
   }
 
   return (
@@ -1090,50 +1808,61 @@ function ProductosTab({ products, persistProducts, config, displayCurrency }) {
 
       {Object.keys(agrupados).length === 0 && <p className="gy-empty-state">No se encontraron productos.</p>}
 
-      {Object.entries(agrupados).map(([cat, items]) => (
-        <div key={cat} className="gy-category-block">
-          <h3 className="gy-category-title">{cat} <span className="gy-category-count">({items.length})</span></h3>
-          <div className="gy-product-list">
-            {items.map((p) => (
-              <div className="gy-product-row" key={p.id}>
-                {editingId === p.id ? (
-                  <>
-                    <input className="gy-input gy-input-sm" value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} />
-                    <select className="gy-input gy-input-sm" value={draft.category} onChange={(e) => setDraft((d) => ({ ...d, category: e.target.value }))}>
-                      {categorias.map((c) => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                    <input className="gy-input gy-input-sm gy-input-price" type="number" step="0.01" value={draft.price} onChange={(e) => setDraft((d) => ({ ...d, price: e.target.value }))} />
-                    <button type="button" className="gy-icon-btn-ok" onClick={() => saveEdit(p.id)}><Check size={15} /></button>
-                    <button type="button" className="gy-icon-btn" onClick={cancelEdit}><X size={15} /></button>
-                  </>
-                ) : (
-                  <>
-                    <span className="gy-product-name">{p.name}</span>
-                    <span className="gy-product-price">
-                      {displayCurrency === "USD" ? formatUSD(p.priceUSD) : formatBs(p.priceUSD * config.tasaCambio)}
-                    </span>
-                    <button type="button" className="gy-icon-btn" onClick={() => startEdit(p)} title="Editar"><Pencil size={14} /></button>
-                    {confirmDeleteId === p.id ? (
-                      <div className="gy-confirm-inline">
-                        <button type="button" className="gy-btn-danger-sm" onClick={() => handleDelete(p.id)}>Eliminar</button>
-                        <button type="button" className="gy-btn-ghost-sm" onClick={() => setConfirmDeleteId(null)}>Cancelar</button>
-                      </div>
+      {Object.entries(agrupados).map(([cat, items]) => {
+        const isCollapsed = collapsed.has(cat);
+        return (
+          <div key={cat} className="gy-category-block">
+            <button type="button" className="gy-category-toggle" onClick={() => toggleCollapsed(cat)}>
+              {isCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+              <h3 className="gy-category-title">{cat} <span className="gy-category-count">({items.length})</span></h3>
+            </button>
+            {!isCollapsed && (
+              <div className="gy-product-list">
+                {items.map((p) => (
+                  <div className="gy-product-row" key={p.id}>
+                    {editingId === p.id ? (
+                      <>
+                        <input className="gy-input gy-input-sm" value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} />
+                        <select className="gy-input gy-input-sm" value={draft.category} onChange={(e) => setDraft((d) => ({ ...d, category: e.target.value }))}>
+                          {categorias.map((c) => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        <input className="gy-input gy-input-sm gy-input-price" type="number" step="0.01" value={draft.price} onChange={(e) => setDraft((d) => ({ ...d, price: e.target.value }))} />
+                        <button type="button" className="gy-icon-btn-ok" onClick={() => saveEdit(p.id)}><Check size={15} /></button>
+                        <button type="button" className="gy-icon-btn" onClick={cancelEdit}><X size={15} /></button>
+                      </>
                     ) : (
-                      <button type="button" className="gy-icon-btn-danger" onClick={() => setConfirmDeleteId(p.id)} title="Eliminar"><Trash2 size={14} /></button>
+                      <>
+                        <span className="gy-product-name">{p.name}</span>
+                        <span className="gy-product-price">
+                          {displayCurrency === "USD" ? formatUSD(p.priceUSD) : formatBs(p.priceUSD * config.tasaCambio)}
+                        </span>
+                        <button type="button" className="gy-icon-btn" onClick={() => startEdit(p)} title="Editar"><Pencil size={14} /></button>
+                        <button type="button" className="gy-icon-btn-danger" onClick={() => handleDelete(p.id)} title="Eliminar"><Trash2 size={14} /></button>
+                      </>
                     )}
-                  </>
-                )}
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
-        </div>
-      ))}
+        );
+      })}
+
+      <OperatorGateModal
+        open={!!gateAction}
+        config={config}
+        title="Clave de operador"
+        mensaje="Los cambios de precio y productos requieren la clave de operador."
+        onCancel={() => setGateAction(null)}
+        onConfirm={() => { const fn = gateAction; setGateAction(null); fn && fn(); }}
+      />
     </div>
   );
 }
 
+
 /* ------------------------------------------------------------------ */
-/*  Tab: Configuración (protegida con contraseña)                       */
+/*  Tab: Configuración (protegida con clave de administrador)           */
 /* ------------------------------------------------------------------ */
 
 function ConfiguracionTab({ config, persistConfig, resetAll, products, persistProducts, showToast }) {
@@ -1143,7 +1872,7 @@ function ConfiguracionTab({ config, persistConfig, resetAll, products, persistPr
 
   function handleUnlock(e) {
     e.preventDefault();
-    if (passwordInput === CONFIG_PASSWORD) {
+    if (passwordInput === config.claveAdmin) {
       setUnlocked(true);
       setPasswordError(false);
       setPasswordInput("");
@@ -1157,12 +1886,12 @@ function ConfiguracionTab({ config, persistConfig, resetAll, products, persistPr
       <div className="gy-lock-screen">
         <div className="gy-lock-icon"><Lock size={22} /></div>
         <h3>Configuración protegida</h3>
-        <p>Ingresa la contraseña para editar la tasa de cambio, el inventario o restablecer datos.</p>
+        <p>Ingresa la clave de administrador para editar la tasa de cambio, el inventario, la marca o restablecer datos.</p>
         <form onSubmit={handleUnlock} className="gy-lock-form">
           <input
             type="password"
             className="gy-input"
-            placeholder="Contraseña"
+            placeholder="Clave de administrador"
             value={passwordInput}
             onChange={(e) => { setPasswordInput(e.target.value); setPasswordError(false); }}
             autoFocus
@@ -1191,7 +1920,7 @@ function ConfiguracionContenido({ config, persistConfig, resetAll, products, per
   const [confirmReset, setConfirmReset] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  async function handleSave() {
+  async function handleSaveTasa() {
     const n = Number(tasaInput);
     if (!n || n <= 0) return;
     await persistConfig({ ...config, tasaCambio: n });
@@ -1201,6 +1930,8 @@ function ConfiguracionContenido({ config, persistConfig, resetAll, products, per
 
   return (
     <div className="gy-stack gy-config-stack">
+      <IdentidadNegocio config={config} persistConfig={persistConfig} showToast={showToast} />
+
       <div className="gy-panel">
         <h3 className="gy-panel-title"><ArrowLeftRight size={16} /> Tasa de cambio</h3>
         <p className="gy-panel-help">
@@ -1217,18 +1948,20 @@ function ConfiguracionContenido({ config, persistConfig, resetAll, products, per
             onChange={(e) => setTasaInput(e.target.value)}
           />
           <span>Bs</span>
-          <button type="button" className="gy-btn-primary" onClick={handleSave}>
+          <button type="button" className="gy-btn-primary" onClick={handleSaveTasa}>
             <Check size={15} /> {saved ? "Guardado" : "Guardar"}
           </button>
         </div>
       </div>
 
-      <ControlInventario products={products} persistProducts={persistProducts} showToast={showToast} />
+      <ControlInventario products={products} persistProducts={persistProducts} showToast={showToast} config={config} />
+
+      <CambioClaves config={config} persistConfig={persistConfig} showToast={showToast} />
 
       <div className="gy-panel gy-danger-zone">
         <h3 className="gy-panel-title"><AlertTriangle size={16} /> Restablecer datos</h3>
         <p className="gy-panel-help">
-          Esto borra todas las ventas registradas y regresa la lista de productos, el inventario y la tasa a los valores iniciales. No se puede deshacer.
+          Esto borra todas las ventas, mesas abiertas, y regresa productos, inventario, tasa y marca a los valores iniciales. No se puede deshacer.
         </p>
         {confirmReset ? (
           <div className="gy-confirm-inline">
@@ -1250,12 +1983,175 @@ function ConfiguracionContenido({ config, persistConfig, resetAll, products, per
 }
 
 /* ------------------------------------------------------------------ */
+/*  Identidad del negocio: nombre, color de marca, logo                 */
+/* ------------------------------------------------------------------ */
+
+function IdentidadNegocio({ config, persistConfig, showToast }) {
+  const [nombre, setNombre] = useState(config.nombreComercio);
+  const [color, setColor] = useState(config.colorPrincipal);
+  const [logoTipo, setLogoTipo] = useState(config.logoTipo);
+  const [logoIcono, setLogoIcono] = useState(config.logoIcono);
+  const [logoImagen, setLogoImagen] = useState(config.logoImagen);
+  const [subiendo, setSubiendo] = useState(false);
+  const fileRef = useRef(null);
+
+  async function handleSubirImagen(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSubiendo(true);
+    try {
+      const dataUrl = await resizeImageToDataURL(file);
+      setLogoImagen(dataUrl);
+      setLogoTipo("imagen");
+    } catch (err) {
+      showToast("No se pudo procesar la imagen. Intenta con otra.");
+    } finally {
+      setSubiendo(false);
+      e.target.value = "";
+    }
+  }
+
+  async function handleGuardar() {
+    await persistConfig({
+      ...config,
+      nombreComercio: nombre.trim() || config.nombreComercio,
+      colorPrincipal: color,
+      logoTipo,
+      logoIcono,
+      logoImagen,
+    });
+    showToast("Identidad del negocio actualizada.", "ok");
+  }
+
+  return (
+    <div className="gy-panel">
+      <h3 className="gy-panel-title"><ImagePlus size={16} /> Identidad del negocio</h3>
+      <p className="gy-panel-help">Personaliza el nombre, el color del banner y el logo que se ven en toda la app.</p>
+
+      <div className="gy-field">
+        <label>Nombre del comercio</label>
+        <input className="gy-input" value={nombre} onChange={(e) => setNombre(e.target.value)} />
+      </div>
+
+      <div className="gy-field">
+        <label>Color principal (banner y botones)</label>
+        <div className="gy-color-row">
+          <input type="color" className="gy-color-input" value={color} onChange={(e) => setColor(e.target.value)} />
+          <span className="gy-color-value">{color}</span>
+        </div>
+      </div>
+
+      <div className="gy-field">
+        <label>Logo</label>
+        <div className="gy-logo-tipo-toggle">
+          <button type="button" className={logoTipo === "icono" ? "active" : ""} onClick={() => setLogoTipo("icono")}>Ícono</button>
+          <button type="button" className={logoTipo === "imagen" ? "active" : ""} onClick={() => setLogoTipo("imagen")}>Imagen propia</button>
+        </div>
+
+        {logoTipo === "icono" ? (
+          <div className="gy-icon-grid">
+            {ICON_OPTIONS.map((opt) => {
+              const Icon = opt.icon;
+              return (
+                <button
+                  type="button"
+                  key={opt.id}
+                  className={`gy-icon-option ${logoIcono === opt.id ? "active" : ""}`}
+                  onClick={() => setLogoIcono(opt.id)}
+                  title={opt.id}
+                >
+                  <Icon size={20} />
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="gy-logo-upload">
+            {logoImagen && <img src={logoImagen} alt="Logo" className="gy-logo-preview" />}
+            <button type="button" className="gy-btn-ghost" onClick={() => fileRef.current?.click()} disabled={subiendo}>
+              <ImagePlus size={15} /> {subiendo ? "Procesando…" : "Subir imagen"}
+            </button>
+            <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleSubirImagen} />
+          </div>
+        )}
+      </div>
+
+      <button type="button" className="gy-btn-primary" onClick={handleGuardar}><Check size={15} /> Guardar identidad</button>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Cambio de claves (administrador y operador)                         */
+/* ------------------------------------------------------------------ */
+
+function CambioClaves({ config, persistConfig, showToast }) {
+  const [adminNueva, setAdminNueva] = useState("");
+  const [adminRepetir, setAdminRepetir] = useState("");
+  const [operadorNueva, setOperadorNueva] = useState("");
+  const [operadorRepetir, setOperadorRepetir] = useState("");
+
+  async function handleGuardarAdmin() {
+    if (!adminNueva || adminNueva !== adminRepetir) {
+      showToast("Las claves de administrador no coinciden.");
+      return;
+    }
+    await persistConfig({ ...config, claveAdmin: adminNueva });
+    setAdminNueva(""); setAdminRepetir("");
+    showToast("Clave de administrador actualizada.", "ok");
+  }
+
+  async function handleGuardarOperador() {
+    if (!operadorNueva || operadorNueva !== operadorRepetir) {
+      showToast("Las claves de operador no coinciden.");
+      return;
+    }
+    await persistConfig({ ...config, claveOperador: operadorNueva });
+    setOperadorNueva(""); setOperadorRepetir("");
+    showToast("Clave de operador actualizada.", "ok");
+  }
+
+  return (
+    <div className="gy-panel">
+      <h3 className="gy-panel-title"><KeyRound size={16} /> Cambiar claves</h3>
+      <p className="gy-panel-help">
+        La clave de <b>administrador</b> abre la caja al iniciar y protege esta pantalla de Configuración.
+        La clave de <b>operador</b> (4 dígitos) se pide para cambios de precio, anular tiques y editar mesas o días anteriores.
+      </p>
+
+      <h4 className="gy-subheading">Clave de administrador</h4>
+      <div className="gy-password-row">
+        <input type="password" className="gy-input" placeholder="Nueva clave" value={adminNueva} onChange={(e) => setAdminNueva(e.target.value)} />
+        <input type="password" className="gy-input" placeholder="Repetir clave" value={adminRepetir} onChange={(e) => setAdminRepetir(e.target.value)} />
+        <button type="button" className="gy-btn-primary" onClick={handleGuardarAdmin}><Check size={15} /> Guardar</button>
+      </div>
+
+      <h4 className="gy-subheading">Clave de operador (4 dígitos)</h4>
+      <div className="gy-password-row">
+        <input type="password" inputMode="numeric" maxLength={4} className="gy-input" placeholder="Nueva clave" value={operadorNueva} onChange={(e) => setOperadorNueva(e.target.value.replace(/\D/g, ""))} />
+        <input type="password" inputMode="numeric" maxLength={4} className="gy-input" placeholder="Repetir clave" value={operadorRepetir} onChange={(e) => setOperadorRepetir(e.target.value.replace(/\D/g, ""))} />
+        <button type="button" className="gy-btn-primary" onClick={handleGuardarOperador}><Check size={15} /> Guardar</button>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Control de Inventario (dentro de Configuración)                     */
 /* ------------------------------------------------------------------ */
 
-function ControlInventario({ products, persistProducts, showToast }) {
+function ControlInventario({ products, persistProducts, showToast, config }) {
   const [filtro, setFiltro] = useState("");
-  const [pending, setPending] = useState({}); // id -> { stock?, alertaStock? }
+  const [pending, setPending] = useState({}); // id -> { stock?, alertaStock?, costo? }
+  const [collapsed, setCollapsed] = useState(() => new Set());
+
+  function toggleCollapsed(cat) {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat); else next.add(cat);
+      return next;
+    });
+  }
 
   const filtrados = useMemo(() => {
     const q = filtro.trim().toLowerCase();
@@ -1290,6 +2186,7 @@ function ControlInventario({ products, persistProducts, showToast }) {
         ...p,
         stock: change.stock !== undefined ? Number(change.stock) || 0 : p.stock,
         alertaStock: change.alertaStock !== undefined ? Number(change.alertaStock) || 0 : p.alertaStock,
+        costo: change.costo !== undefined ? Number(change.costo) || 0 : (p.costo ?? 0),
       };
     });
     await persistProducts(next);
@@ -1301,8 +2198,8 @@ function ControlInventario({ products, persistProducts, showToast }) {
     <div className="gy-panel">
       <h3 className="gy-panel-title"><Boxes size={16} /> Control de inventario</h3>
       <p className="gy-panel-help">
-        Define la cantidad disponible de cada producto y a partir de qué número avisar que el stock está bajo.
-        Al registrar una venta, el stock se descuenta automáticamente.
+        Define la cantidad disponible, el número de alerta de stock bajo y el costo de cada producto (el costo puede
+        quedar en 0 si todavía no lo tienes). Al registrar una venta, el stock se descuenta automáticamente.
       </p>
 
       <div className="gy-inventory-toolbar">
@@ -1326,44 +2223,62 @@ function ControlInventario({ products, persistProducts, showToast }) {
       </div>
 
       <div className="gy-inventory-list">
-        {Object.entries(agrupados).map(([cat, items]) => (
-          <div key={cat} className="gy-category-block">
-            <h4 className="gy-category-title-sm">{cat} <span className="gy-category-count">({items.length})</span></h4>
-            {items.map((p) => {
-              const stockVal = getValue(p, "stock");
-              const alertaVal = getValue(p, "alertaStock");
-              const low = Number(stockVal) <= Number(alertaVal);
-              return (
-                <div className="gy-inventory-row" key={p.id}>
-                  <span className="gy-inventory-name">{p.name}</span>
-                  <label className="gy-inventory-field">
-                    <span>Stock</span>
-                    <input
-                      type="number"
-                      className="gy-input gy-input-sm"
-                      value={stockVal}
-                      onChange={(e) => setValue(p.id, "stock", e.target.value)}
-                    />
-                  </label>
-                  <label className="gy-inventory-field">
-                    <span>Alerta</span>
-                    <input
-                      type="number"
-                      className="gy-input gy-input-sm"
-                      value={alertaVal}
-                      onChange={(e) => setValue(p.id, "alertaStock", e.target.value)}
-                    />
-                  </label>
-                  {low && <span className="gy-lowstock-badge">Stock bajo</span>}
-                </div>
-              );
-            })}
-          </div>
-        ))}
+        {Object.entries(agrupados).map(([cat, items]) => {
+          const isCollapsed = collapsed.has(cat);
+          return (
+            <div key={cat} className="gy-category-block">
+              <button type="button" className="gy-category-toggle" onClick={() => toggleCollapsed(cat)}>
+                {isCollapsed ? <ChevronRight size={15} /> : <ChevronDown size={15} />}
+                <h4 className="gy-category-title-sm">{cat} <span className="gy-category-count">({items.length})</span></h4>
+              </button>
+              {!isCollapsed && items.map((p) => {
+                const stockVal = getValue(p, "stock");
+                const alertaVal = getValue(p, "alertaStock");
+                const costoVal = getValue(p, "costo");
+                const low = Number(stockVal) <= Number(alertaVal);
+                return (
+                  <div className="gy-inventory-row" key={p.id}>
+                    <span className="gy-inventory-name">{p.name}</span>
+                    <label className="gy-inventory-field">
+                      <span>Stock</span>
+                      <input
+                        type="number"
+                        className="gy-input gy-input-sm"
+                        value={stockVal}
+                        onChange={(e) => setValue(p.id, "stock", e.target.value)}
+                      />
+                    </label>
+                    <label className="gy-inventory-field">
+                      <span>Alerta</span>
+                      <input
+                        type="number"
+                        className="gy-input gy-input-sm"
+                        value={alertaVal}
+                        onChange={(e) => setValue(p.id, "alertaStock", e.target.value)}
+                      />
+                    </label>
+                    <label className="gy-inventory-field">
+                      <span>Costo $</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="gy-input gy-input-sm"
+                        value={costoVal}
+                        onChange={(e) => setValue(p.id, "costo", e.target.value)}
+                      />
+                    </label>
+                    {low && <span className="gy-lowstock-badge">Stock bajo</span>}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 }
+
 
 /* ------------------------------------------------------------------ */
 /*  Estilos                                                             */
@@ -1400,6 +2315,21 @@ function StyleBlock() {
         display: flex; flex-direction: column; align-items: center; justify-content: center;
         gap: 10px; min-height: 420px; color: var(--muted);
       }
+
+      /* ---------- Apertura de caja ---------- */
+      .gy-apertura-wrap {
+        min-height: 480px; display: flex; align-items: center; justify-content: center; padding: 30px;
+        background: var(--ink);
+      }
+      .gy-apertura-card {
+        max-width: 380px; width: 100%; text-align: center; background: var(--paper);
+        border-radius: 18px; padding: 32px 26px; display: flex; flex-direction: column; align-items: center; gap: 6px;
+      }
+      .gy-apertura-card h1 { font-family: 'Fraunces', serif; font-size: 20px; margin: 6px 0 0; color: var(--ink); }
+      .gy-apertura-card h3 { font-family: 'Fraunces', serif; font-size: 15px; margin: 2px 0 0; color: var(--muted); font-weight: 500; }
+      .gy-apertura-card p { font-size: 12.5px; color: var(--muted); margin: 6px 0 10px; }
+
+      /* ---------- Header ---------- */
       .gy-header {
         display: flex; align-items: center; justify-content: space-between;
         gap: 12px; padding: 18px 22px; background: var(--ink); color: var(--cream); flex-wrap: wrap;
@@ -1408,14 +2338,21 @@ function StyleBlock() {
       .gy-brand-icon {
         width: 38px; height: 38px; border-radius: 10px; background: var(--caramel);
         display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0;
+        overflow: hidden;
       }
+      .gy-brand-icon img { width: 100%; height: 100%; object-fit: cover; }
       .gy-brand h1 { font-family: 'Fraunces', serif; font-size: 19px; font-weight: 600; margin: 0; line-height: 1.1; }
       .gy-brand p { font-size: 12px; margin: 2px 0 0; color: #CFE0D3; }
-      .gy-header-right { display: flex; align-items: center; gap: 10px; }
+      .gy-header-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
       .gy-rate-pill {
         display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.1);
         padding: 6px 10px; border-radius: 999px; font-size: 12px; font-family: 'IBM Plex Mono', monospace;
       }
+      .gy-icon-toggle {
+        display: flex; align-items: center; justify-content: center; width: 30px; height: 30px;
+        background: rgba(255,255,255,0.12); border: none; border-radius: 999px; color: var(--cream); cursor: pointer;
+      }
+      .gy-icon-toggle:hover { background: rgba(255,255,255,0.2); }
       .gy-currency-toggle {
         display: flex; background: rgba(255,255,255,0.12); border-radius: 999px; padding: 3px;
         border: none; cursor: pointer;
@@ -1453,6 +2390,7 @@ function StyleBlock() {
       .gy-input-sm { padding: 7px 9px; font-size: 13px; }
       .gy-input-price { max-width: 90px; }
       .gy-input-rate { max-width: 110px; font-family: 'IBM Plex Mono', monospace; }
+      .gy-input-pin { text-align: center; letter-spacing: 8px; font-size: 20px; font-family: 'IBM Plex Mono', monospace; max-width: 140px; margin: 0 auto; }
 
       .gy-venta-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 22px; align-items: start; }
       @media (max-width: 720px) { .gy-venta-grid { grid-template-columns: 1fr; } }
@@ -1460,6 +2398,7 @@ function StyleBlock() {
       .gy-panel { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
       .gy-panel-title { display: flex; align-items: center; gap: 7px; font-family: 'Fraunces', serif; font-size: 16px; margin: 0 0 6px; }
       .gy-panel-help { font-size: 12.5px; color: var(--muted); margin: 0 0 12px; line-height: 1.5; }
+      .gy-subheading { font-size: 12.5px; font-weight: 700; color: var(--ink); margin: 14px 0 8px; }
 
       .gy-lowstock-banner {
         display: flex; align-items: center; gap: 8px; background: #FBEAE6; color: var(--rust);
@@ -1553,6 +2492,7 @@ function StyleBlock() {
       }
       .gy-btn-primary:hover { background: var(--caramel-dark); color: white; }
       .gy-save-btn { flex: 1; }
+      .gy-back-btn { margin-bottom: 14px; }
 
       .gy-btn-ghost { display: flex; align-items: center; gap: 6px; background: transparent; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; }
       .gy-btn-danger { display: flex; align-items: center; gap: 6px; background: transparent; border: 1px solid var(--rust); color: var(--rust); border-radius: 10px; padding: 10px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
@@ -1607,8 +2547,13 @@ function StyleBlock() {
       .gy-add-panel .gy-field { margin-bottom: 0; }
       .gy-add-actions { grid-column: 1 / -1; display: flex; gap: 8px; }
       @media (max-width: 620px) { .gy-add-panel { grid-template-columns: 1fr; } }
+      .gy-add-panel-mesa { grid-template-columns: 2fr auto; align-items: end; }
 
       .gy-category-block { margin-top: 4px; }
+      .gy-category-toggle {
+        display: flex; align-items: center; gap: 4px; background: transparent; border: none; cursor: pointer;
+        padding: 4px 0; width: 100%; text-align: left; color: var(--caramel-dark);
+      }
       .gy-category-title { font-family: 'Fraunces', serif; font-size: 14.5px; color: var(--caramel-dark); margin: 0 0 8px; }
       .gy-category-title-sm { font-family: 'Fraunces', serif; font-size: 13.5px; color: var(--caramel-dark); margin: 14px 0 8px; }
       .gy-category-count { font-family: 'Inter', sans-serif; font-size: 11.5px; color: var(--muted); font-weight: 500; }
@@ -1653,6 +2598,67 @@ function StyleBlock() {
       }
       .gy-toast-error { background: var(--rust); color: white; }
       .gy-toast-ok { background: var(--forest); color: white; }
+
+      /* ---------- Modal genérico (clave de operador) ---------- */
+      .gy-modal-overlay {
+        position: fixed; inset: 0; background: rgba(11,79,48,0.35); display: flex; align-items: center;
+        justify-content: center; z-index: 60; padding: 20px;
+      }
+      .gy-modal {
+        background: var(--paper); border-radius: 16px; padding: 26px 24px; max-width: 340px; width: 100%;
+        text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+      }
+      .gy-modal h3 { font-family: 'Fraunces', serif; font-size: 16px; margin: 4px 0 0; }
+      .gy-modal p { font-size: 12.5px; color: var(--muted); margin: 0 0 10px; }
+      .gy-modal-actions { display: flex; gap: 8px; width: 100%; }
+      .gy-modal-actions button { flex: 1; }
+
+      /* ---------- Submodo Pedidos: Venta directa / Mesas ---------- */
+      .gy-submode-toggle { display: flex; gap: 6px; background: var(--parchment); padding: 4px; border-radius: 11px; width: fit-content; }
+      .gy-submode-toggle button {
+        display: flex; align-items: center; gap: 6px; border: none; background: transparent; padding: 8px 14px;
+        border-radius: 8px; font-size: 12.5px; font-weight: 700; color: var(--muted); cursor: pointer;
+      }
+      .gy-submode-toggle button.active { background: var(--paper); color: var(--ink); box-shadow: 0 1px 0 var(--line); }
+
+      /* ---------- Mesas ---------- */
+      .gy-mesas-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+      .gy-mesas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px,1fr)); gap: 10px; }
+      .gy-mesa-card {
+        display: flex; align-items: stretch; background: var(--paper); border: 1px solid var(--line);
+        border-radius: 12px; overflow: hidden;
+      }
+      .gy-mesa-card-main {
+        flex: 1; text-align: left; border: none; background: transparent; cursor: pointer; padding: 14px;
+        display: flex; flex-direction: column; gap: 4px;
+      }
+      .gy-mesa-name { font-family: 'Fraunces', serif; font-size: 15px; color: var(--ink); }
+      .gy-mesa-items { font-size: 11.5px; color: var(--muted); }
+      .gy-mesa-total { font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; color: var(--caramel-dark); font-weight: 600; }
+
+      /* ---------- Identidad del negocio ---------- */
+      .gy-color-row { display: flex; align-items: center; gap: 10px; }
+      .gy-color-input { width: 46px; height: 36px; border: 1px solid var(--line); border-radius: 8px; padding: 2px; cursor: pointer; background: var(--paper); }
+      .gy-color-value { font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; color: var(--muted); }
+      .gy-logo-tipo-toggle { display: flex; gap: 6px; margin-bottom: 10px; }
+      .gy-logo-tipo-toggle button {
+        border: 1px solid var(--line); background: var(--paper); padding: 7px 14px; border-radius: 999px;
+        font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer;
+      }
+      .gy-logo-tipo-toggle button.active { background: var(--ink); border-color: var(--ink); color: white; }
+      .gy-icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px,1fr)); gap: 8px; max-width: 380px; }
+      .gy-icon-option {
+        width: 44px; height: 44px; border-radius: 10px; border: 1px solid var(--line); background: var(--paper);
+        display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--muted);
+      }
+      .gy-icon-option.active { background: var(--ink); border-color: var(--ink); color: white; }
+      .gy-logo-upload { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+      .gy-logo-preview { width: 52px; height: 52px; border-radius: 10px; object-fit: cover; border: 1px solid var(--line); }
+
+      /* ---------- Cambio de claves ---------- */
+      .gy-password-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: center; margin-bottom: 6px; }
+      @media (max-width: 560px) { .gy-password-row { grid-template-columns: 1fr; } }
 
       .gy-print-ticket { display: none; }
       @media print {
