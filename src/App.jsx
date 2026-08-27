@@ -6,9 +6,9 @@ import {
   ArrowLeftRight, CalendarDays, Printer, Lock, Unlock, Boxes,
   Eye, EyeOff, KeyRound, ChevronDown, ChevronRight, ArrowLeft,
   ImagePlus, LayoutGrid, Croissant, UtensilsCrossed, ChefHat, Store,
-  Pizza, IceCream2, CupSoda, Cookie, Sandwich, ShieldCheck
+  Pizza, IceCream2, CupSoda, Cookie, Sandwich, ShieldCheck, Split
 } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from "recharts";
+import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList } from "recharts";
 
 /* ------------------------------------------------------------------ */
 /*  Datos base                                                         */
@@ -220,6 +220,36 @@ function formatHora(ts) {
 }
 function paymentMeta(id) {
   return PAYMENT_METHODS.find((m) => m.id === id) || PAYMENT_METHODS[0];
+}
+// Convierte el monto de una línea de pago (en su moneda nativa) a su
+// equivalente en $, para poder sumar formas de pago mixtas.
+function montoLineaEnUSD(pago, tasaCambio) {
+  const meta = paymentMeta(pago.metodo);
+  const n = Number(pago.monto) || 0;
+  return meta.currency === "Bs" ? n / tasaCambio : n;
+}
+// Devuelve las líneas de pago de una venta. Las ventas nuevas guardan un
+// arreglo "pagos" (una o varias formas de pago). Las ventas antiguas, de
+// antes de admitir pago mixto, solo tenían "formaPago" + "referencia" —
+// aquí se reconstruye como una única línea equivalente, sin migrar datos.
+function pagosDeVenta(venta) {
+  if (Array.isArray(venta.pagos) && venta.pagos.length > 0) return venta.pagos;
+  if (venta.formaPago) {
+    const meta = paymentMeta(venta.formaPago);
+    return [{
+      metodo: venta.formaPago,
+      monto: meta.currency === "Bs" ? venta.totalBs : venta.totalUSD,
+      referencia: venta.referencia || "",
+    }];
+  }
+  return [];
+}
+function formatMontoPago(pago) {
+  const meta = paymentMeta(pago.metodo);
+  return meta.currency === "Bs" ? formatBs(Number(pago.monto) || 0) : formatUSD(Number(pago.monto) || 0);
+}
+function resumenPagosTexto(pagos) {
+  return pagos.map((p) => `${paymentMeta(p.metodo).label} ${formatMontoPago(p)}`).join(" + ");
 }
 // Enmascara valores sensibles cuando el modo "ocultar vista" está activo
 function mask(text, hidden) {
@@ -579,7 +609,7 @@ function TabNav({ tab, setTab }) {
 
 function PrintableTicket({ data, nombreComercio, tagline }) {
   if (!data) return null;
-  const pago = data.formaPago ? paymentMeta(data.formaPago) : null;
+  const pagos = data.pagos && data.pagos.length > 0 ? data.pagos : (data.formaPago ? pagosDeVenta(data) : []);
   return (
     <div className="gy-print-ticket">
       <div className="gy-print-head">{(nombreComercio || "").toUpperCase()}</div>
@@ -598,9 +628,15 @@ function PrintableTicket({ data, nombreComercio, tagline }) {
       <div className="gy-print-total"><span>Total $</span><span>{formatUSD(data.totalUSD)}</span></div>
       <div className="gy-print-total"><span>Total Bs</span><span>{formatBs(data.totalBs)}</span></div>
       <div className="gy-print-line" />
-      <div className="gy-print-sub">
-        {pago ? pago.label : "Pago pendiente"}{data.referencia ? ` · Ref. ${data.referencia}` : ""}
-      </div>
+      {pagos.length > 0 ? (
+        pagos.map((p, idx) => (
+          <div className="gy-print-sub" key={idx}>
+            {paymentMeta(p.metodo).label} {formatMontoPago(p)}{p.referencia ? ` · Ref. ${p.referencia}` : ""}
+          </div>
+        ))
+      ) : (
+        <div className="gy-print-sub">Pago pendiente</div>
+      )}
       <div className="gy-print-thanks">¡Gracias por tu visita!</div>
     </div>
   );
@@ -635,7 +671,7 @@ function OperatorGateModal({ open, config, title, mensaje, onCancel, onConfirm }
         <div className="gy-lock-icon"><KeyRound size={20} /></div>
         <h3>{title || "Clave de operador"}</h3>
         <p>{mensaje || "Esta acción requiere la clave de operador."}</p>
-        <form onSubmit={handleSubmit} className="gy-lock-form">
+        <form onSubmit={handleSubmit} className="gy-modal-form">
           <input
             type="password"
             inputMode="numeric"
@@ -673,6 +709,7 @@ function PedidosTab({ products, config, sales, mesas, persistSales, persistProdu
         </button>
         <button type="button" className={modo === "mesas" ? "active" : ""} onClick={() => setModo("mesas")}>
           <LayoutGrid size={15} /> Mesas
+          {mesas.length > 0 && <span className="gy-badge-count">{mesas.length}</span>}
         </button>
       </div>
 
@@ -708,6 +745,80 @@ function PedidosTab({ products, config, sales, mesas, persistSales, persistProdu
 }
 
 /* ------------------------------------------------------------------ */
+/*  Formas de pago combinadas (una venta puede pagarse con varias)      */
+/* ------------------------------------------------------------------ */
+
+function PagoMultipleForm({ pagos, setPagos, totalUSD, config, errorPagos }) {
+  function addLine() {
+    setPagos((prev) => [...prev, { id: uid("pago"), metodo: "", monto: "", referencia: "" }]);
+  }
+  function updateLine(id, field, value) {
+    setPagos((prev) => prev.map((p) => (p.id === id ? { ...p, [field]: value } : p)));
+  }
+  function removeLine(id) {
+    setPagos((prev) => prev.filter((p) => p.id !== id));
+  }
+
+  const cubiertoUSD = pagos.reduce((sum, p) => sum + (p.metodo ? montoLineaEnUSD(p, config.tasaCambio) : 0), 0);
+  const restanteUSD = totalUSD - cubiertoUSD;
+  const cubierto = Math.abs(restanteUSD) < 0.015;
+
+  return (
+    <div className="gy-field">
+      <label>Forma(s) de pago</label>
+
+      {pagos.length === 0 && <p className="gy-pago-empty">Aún no has agregado ninguna forma de pago.</p>}
+
+      <div className="gy-pago-lineas">
+        {pagos.map((p) => {
+          const meta = p.metodo ? paymentMeta(p.metodo) : null;
+          return (
+            <div className="gy-pago-linea" key={p.id}>
+              <select className="gy-input gy-input-sm gy-pago-metodo" value={p.metodo} onChange={(e) => updateLine(p.id, "metodo", e.target.value)}>
+                <option value="">Método…</option>
+                {PAYMENT_METHODS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+              </select>
+              <div className="gy-pago-monto-wrap">
+                <input
+                  type="number" step="0.01" className="gy-input gy-input-sm gy-pago-monto"
+                  placeholder="Monto" value={p.monto}
+                  onChange={(e) => updateLine(p.id, "monto", e.target.value)}
+                />
+                <span className="gy-pago-currency">{meta ? meta.currency : ""}</span>
+              </div>
+              {p.metodo === "pago_movil" && (
+                <input
+                  type="text" inputMode="numeric" className="gy-input gy-input-sm gy-pago-ref"
+                  placeholder="N° referencia" value={p.referencia}
+                  onChange={(e) => updateLine(p.id, "referencia", e.target.value)}
+                />
+              )}
+              <button type="button" className="gy-icon-btn-danger" onClick={() => removeLine(p.id)}><Trash2 size={14} /></button>
+            </div>
+          );
+        })}
+      </div>
+
+      <button type="button" className="gy-btn-ghost gy-add-pago-btn" onClick={addLine}><Plus size={14} /> Agregar forma de pago</button>
+
+      {pagos.length > 0 && (
+        <div className={`gy-pago-resumen ${cubierto ? "ok" : restanteUSD > 0 ? "falta" : "vuelto"}`}>
+          {cubierto && <span><Check size={13} /> Cubierto: {formatUSD(totalUSD)}</span>}
+          {!cubierto && restanteUSD > 0 && (
+            <span><AlertTriangle size={13} /> Falta cubrir: {formatUSD(restanteUSD)} ({formatBs(restanteUSD * config.tasaCambio)})</span>
+          )}
+          {!cubierto && restanteUSD < 0 && (
+            <span><ArrowLeftRight size={13} /> Vuelto: {formatUSD(Math.abs(restanteUSD))} ({formatBs(Math.abs(restanteUSD) * config.tasaCambio)})</span>
+          )}
+        </div>
+      )}
+
+      {errorPagos && <p className="gy-error-text">{errorPagos}</p>}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Tab: Nueva Venta (venta directa, de una sola vez)                   */
 /* ------------------------------------------------------------------ */
 
@@ -718,8 +829,7 @@ function NuevaVentaTab({ products, config, sales, persistSales, persistProducts,
   const [activeIndex, setActiveIndex] = useState(0);
   const [showDropdown, setShowDropdown] = useState(false);
   const [numeroTicket, setNumeroTicket] = useState("");
-  const [formaPago, setFormaPago] = useState(null);
-  const [referencia, setReferencia] = useState("");
+  const [pagos, setPagos] = useState([]);
   const [errors, setErrors] = useState({});
   const inputRef = useRef(null);
 
@@ -785,8 +895,6 @@ function NuevaVentaTab({ products, config, sales, persistSales, persistProducts,
   const totalUSD = useMemo(() => cart.reduce((sum, i) => sum + i.priceUSD * i.qty, 0), [cart]);
   const totalBs = totalUSD * config.tasaCambio;
 
-  const pago = formaPago ? paymentMeta(formaPago) : null;
-
   function handleKeyDown(e) {
     if (!showDropdown || results.length === 0) return;
     if (e.key === "ArrowDown") { e.preventDefault(); setActiveIndex((i) => Math.min(i + 1, results.length - 1)); }
@@ -799,14 +907,27 @@ function NuevaVentaTab({ products, config, sales, persistSales, persistProducts,
     const errs = {};
     if (cart.length === 0) errs.cart = "Agrega al menos un producto.";
     if (!numeroTicket.trim()) errs.numeroTicket = "Coloca el número de tique.";
-    if (!formaPago) errs.formaPago = "Selecciona la forma de pago.";
-    if (formaPago === "pago_movil" && !referencia.trim()) errs.referencia = "Coloca el número de referencia.";
+    if (pagos.length === 0) {
+      errs.pagos = "Agrega al menos una forma de pago.";
+    } else if (pagos.some((p) => !p.metodo || !p.monto || Number(p.monto) <= 0)) {
+      errs.pagos = "Completa el método y el monto de cada forma de pago.";
+    } else if (pagos.some((p) => p.metodo === "pago_movil" && !p.referencia.trim())) {
+      errs.pagos = "Coloca el número de referencia de Pago Móvil.";
+    } else {
+      const cubiertoUSD = pagos.reduce((sum, p) => sum + montoLineaEnUSD(p, config.tasaCambio), 0);
+      if (totalUSD - cubiertoUSD > 0.015) errs.pagos = "Las formas de pago no cubren el total de la venta.";
+    }
     setErrors(errs);
     return Object.keys(errs).length === 0;
   }
 
   async function handleGuardar() {
     if (!validate()) return;
+    const pagosLimpios = pagos.map((p) => ({
+      metodo: p.metodo,
+      monto: Number(p.monto) || 0,
+      referencia: p.metodo === "pago_movil" ? p.referencia.trim() : "",
+    }));
     const nueva = {
       id: uid("venta"),
       fecha,
@@ -815,8 +936,7 @@ function NuevaVentaTab({ products, config, sales, persistSales, persistProducts,
       totalUSD,
       totalBs,
       tasaUsada: config.tasaCambio,
-      formaPago,
-      referencia: formaPago === "pago_movil" ? referencia.trim() : "",
+      pagos: pagosLimpios,
       timestamp: new Date().toISOString(),
     };
     const next = [...sales, nueva];
@@ -832,21 +952,23 @@ function NuevaVentaTab({ products, config, sales, persistSales, persistProducts,
 
     showToast(`Venta #${nueva.numeroTicket} registrada.`, "ok");
     setCart([]);
-    setFormaPago(null);
-    setReferencia("");
+    setPagos([]);
     setErrors({});
     setNumeroTicket(suggestTicket(fecha, next));
   }
 
   function handlePrint() {
+    const pagosLimpios = pagos.filter((p) => p.metodo).map((p) => ({
+      metodo: p.metodo, monto: Number(p.monto) || 0,
+      referencia: p.metodo === "pago_movil" ? p.referencia : "",
+    }));
     triggerPrint({
       numeroTicket: numeroTicket.trim(),
       fecha,
       items: cart,
       totalUSD,
       totalBs,
-      formaPago,
-      referencia,
+      pagos: pagosLimpios,
     });
   }
 
@@ -914,41 +1036,7 @@ function NuevaVentaTab({ products, config, sales, persistSales, persistProducts,
         </div>
         {errors.cart && <p className="gy-error-text">{errors.cart}</p>}
 
-        <div className="gy-field">
-          <label>Forma de pago</label>
-          <div className="gy-payment-grid">
-            {PAYMENT_METHODS.map((m) => {
-              const Icon = m.icon;
-              return (
-                <button
-                  type="button"
-                  key={m.id}
-                  className={`gy-payment-btn ${formaPago === m.id ? "active" : ""}`}
-                  onClick={() => setFormaPago(m.id)}
-                >
-                  <Icon size={16} />
-                  <span>{m.label}</span>
-                </button>
-              );
-            })}
-          </div>
-          {errors.formaPago && <p className="gy-error-text">{errors.formaPago}</p>}
-        </div>
-
-        {formaPago === "pago_movil" && (
-          <div className="gy-field">
-            <label>Número de referencia (Pago Móvil)</label>
-            <input
-              type="text"
-              inputMode="numeric"
-              placeholder="Ej: 004521"
-              value={referencia}
-              onChange={(e) => setReferencia(e.target.value)}
-              className="gy-input"
-            />
-            {errors.referencia && <p className="gy-error-text">{errors.referencia}</p>}
-          </div>
-        )}
+        <PagoMultipleForm pagos={pagos} setPagos={setPagos} totalUSD={totalUSD} config={config} errorPagos={errors.pagos} />
       </section>
 
       <section className="gy-ticket-wrap">
@@ -996,11 +1084,18 @@ function NuevaVentaTab({ products, config, sales, persistSales, persistProducts,
             <div className="gy-total-row"><span>Total Bs</span><strong>{formatBs(totalBs)}</strong></div>
           </div>
 
-          {pago && (
-            <div className="gy-ticket-pago">
-              <pago.icon size={14} />
-              <span>{pago.label}</span>
-              {pago.id === "pago_movil" && referencia && <span className="gy-ticket-ref">Ref. {referencia}</span>}
+          {pagos.filter((p) => p.metodo).length > 0 && (
+            <div className="gy-ticket-pago-list">
+              {pagos.filter((p) => p.metodo).map((p) => {
+                const meta = paymentMeta(p.metodo);
+                return (
+                  <div className="gy-ticket-pago" key={p.id}>
+                    <meta.icon size={14} />
+                    <span>{meta.label} {formatMontoPago(p)}</span>
+                    {p.metodo === "pago_movil" && p.referencia && <span className="gy-ticket-ref">Ref. {p.referencia}</span>}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -1149,8 +1244,7 @@ function MesaDetalle({ mesa, products, config, sales, persistSales, persistProdu
   const [showDropdown, setShowDropdown] = useState(false);
   const [showCobro, setShowCobro] = useState(false);
   const [numeroTicket, setNumeroTicket] = useState("");
-  const [formaPago, setFormaPago] = useState(null);
-  const [referencia, setReferencia] = useState("");
+  const [pagos, setPagos] = useState([]);
   const [errors, setErrors] = useState({});
   const inputRef = useRef(null);
 
@@ -1194,7 +1288,6 @@ function MesaDetalle({ mesa, products, config, sales, persistSales, persistProdu
 
   const totalUSD = useMemo(() => mesa.items.reduce((sum, i) => sum + i.priceUSD * i.qty, 0), [mesa.items]);
   const totalBs = totalUSD * config.tasaCambio;
-  const pago = formaPago ? paymentMeta(formaPago) : null;
 
   function handleKeyDown(e) {
     if (!showDropdown || results.length === 0) return;
@@ -1214,14 +1307,27 @@ function MesaDetalle({ mesa, products, config, sales, persistSales, persistProdu
     const errs = {};
     if (mesa.items.length === 0) errs.cart = "Agrega al menos un producto antes de cobrar.";
     if (!numeroTicket.trim()) errs.numeroTicket = "Coloca el número de tique.";
-    if (!formaPago) errs.formaPago = "Selecciona la forma de pago.";
-    if (formaPago === "pago_movil" && !referencia.trim()) errs.referencia = "Coloca el número de referencia.";
+    if (pagos.length === 0) {
+      errs.pagos = "Agrega al menos una forma de pago.";
+    } else if (pagos.some((p) => !p.metodo || !p.monto || Number(p.monto) <= 0)) {
+      errs.pagos = "Completa el método y el monto de cada forma de pago.";
+    } else if (pagos.some((p) => p.metodo === "pago_movil" && !p.referencia.trim())) {
+      errs.pagos = "Coloca el número de referencia de Pago Móvil.";
+    } else {
+      const cubiertoUSD = pagos.reduce((sum, p) => sum + montoLineaEnUSD(p, config.tasaCambio), 0);
+      if (totalUSD - cubiertoUSD > 0.015) errs.pagos = "Las formas de pago no cubren el total de la cuenta.";
+    }
     setErrors(errs);
     return Object.keys(errs).length === 0;
   }
 
   async function handleCobrar() {
     if (!validate()) return;
+    const pagosLimpios = pagos.map((p) => ({
+      metodo: p.metodo,
+      monto: Number(p.monto) || 0,
+      referencia: p.metodo === "pago_movil" ? p.referencia.trim() : "",
+    }));
     const fecha = todayISO();
     const nueva = {
       id: uid("venta"),
@@ -1232,8 +1338,7 @@ function MesaDetalle({ mesa, products, config, sales, persistSales, persistProdu
       totalUSD,
       totalBs,
       tasaUsada: config.tasaCambio,
-      formaPago,
-      referencia: formaPago === "pago_movil" ? referencia.trim() : "",
+      pagos: pagosLimpios,
       timestamp: new Date().toISOString(),
     };
     await persistSales([...sales, nueva]);
@@ -1251,6 +1356,10 @@ function MesaDetalle({ mesa, products, config, sales, persistSales, persistProdu
   }
 
   function handlePrintPreview() {
+    const pagosLimpios = pagos.filter((p) => p.metodo).map((p) => ({
+      metodo: p.metodo, monto: Number(p.monto) || 0,
+      referencia: p.metodo === "pago_movil" ? p.referencia : "",
+    }));
     triggerPrint({
       numeroTicket: numeroTicket || "—",
       fecha: todayISO(),
@@ -1258,8 +1367,7 @@ function MesaDetalle({ mesa, products, config, sales, persistSales, persistProdu
       items: mesa.items,
       totalUSD,
       totalBs,
-      formaPago,
-      referencia,
+      pagos: pagosLimpios,
     });
   }
 
@@ -1318,40 +1426,7 @@ function MesaDetalle({ mesa, products, config, sales, persistSales, persistProdu
               <input className="gy-input" value={numeroTicket} onChange={(e) => setNumeroTicket(e.target.value)} />
               {errors.numeroTicket && <p className="gy-error-text">{errors.numeroTicket}</p>}
             </div>
-            <div className="gy-field">
-              <label>Forma de pago</label>
-              <div className="gy-payment-grid">
-                {PAYMENT_METHODS.map((m) => {
-                  const Icon = m.icon;
-                  return (
-                    <button
-                      type="button"
-                      key={m.id}
-                      className={`gy-payment-btn ${formaPago === m.id ? "active" : ""}`}
-                      onClick={() => setFormaPago(m.id)}
-                    >
-                      <Icon size={16} />
-                      <span>{m.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              {errors.formaPago && <p className="gy-error-text">{errors.formaPago}</p>}
-            </div>
-            {formaPago === "pago_movil" && (
-              <div className="gy-field">
-                <label>Número de referencia (Pago Móvil)</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="Ej: 004521"
-                  value={referencia}
-                  onChange={(e) => setReferencia(e.target.value)}
-                  className="gy-input"
-                />
-                {errors.referencia && <p className="gy-error-text">{errors.referencia}</p>}
-              </div>
-            )}
+            <PagoMultipleForm pagos={pagos} setPagos={setPagos} totalUSD={totalUSD} config={config} errorPagos={errors.pagos} />
           </>
         )}
       </section>
@@ -1391,11 +1466,18 @@ function MesaDetalle({ mesa, products, config, sales, persistSales, persistProdu
             <div className="gy-total-row"><span>Total Bs</span><strong>{formatBs(totalBs)}</strong></div>
           </div>
 
-          {pago && (
-            <div className="gy-ticket-pago">
-              <pago.icon size={14} />
-              <span>{pago.label}</span>
-              {pago.id === "pago_movil" && referencia && <span className="gy-ticket-ref">Ref. {referencia}</span>}
+          {pagos.filter((p) => p.metodo).length > 0 && (
+            <div className="gy-ticket-pago-list">
+              {pagos.filter((p) => p.metodo).map((p) => {
+                const meta = paymentMeta(p.metodo);
+                return (
+                  <div className="gy-ticket-pago" key={p.id}>
+                    <meta.icon size={14} />
+                    <span>{meta.label} {formatMontoPago(p)}</span>
+                    {p.metodo === "pago_movil" && p.referencia && <span className="gy-ticket-ref">Ref. {p.referencia}</span>}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -1440,10 +1522,13 @@ function JornadaTab({ sales, persistSales, triggerPrint, vistaOculta, config }) 
     const map = {};
     PAYMENT_METHODS.forEach((m) => { map[m.id] = { count: 0, usd: 0, bs: 0 }; });
     ventasDia.forEach((v) => {
-      if (!map[v.formaPago]) map[v.formaPago] = { count: 0, usd: 0, bs: 0 };
-      map[v.formaPago].count += 1;
-      map[v.formaPago].usd += v.totalUSD;
-      map[v.formaPago].bs += v.totalBs;
+      pagosDeVenta(v).forEach((p) => {
+        if (!map[p.metodo]) map[p.metodo] = { count: 0, usd: 0, bs: 0 };
+        map[p.metodo].count += 1;
+        const meta = paymentMeta(p.metodo);
+        if (meta.currency === "Bs") map[p.metodo].bs += Number(p.monto) || 0;
+        else map[p.metodo].usd += Number(p.monto) || 0;
+      });
     });
     return map;
   }, [ventasDia]);
@@ -1482,7 +1567,7 @@ function JornadaTab({ sales, persistSales, triggerPrint, vistaOculta, config }) 
           return (
             <div className="gy-method-card" key={m.id}>
               <div className="gy-method-head"><Icon size={15} /><span>{m.label}</span></div>
-              <span className="gy-method-count">{d.count} tique{d.count === 1 ? "" : "s"}</span>
+              <span className="gy-method-count">{d.count} pago{d.count === 1 ? "" : "s"}</span>
               <span className="gy-method-amount">{mask(m.currency === "Bs" ? formatBs(d.bs) : formatUSD(d.usd), vistaOculta)}</span>
             </div>
           );
@@ -1494,8 +1579,9 @@ function JornadaTab({ sales, persistSales, triggerPrint, vistaOculta, config }) 
           <p className="gy-empty-state">No hay ventas registradas para el {formatFechaLarga(fecha)}.</p>
         )}
         {ventasDia.map((v) => {
-          const pago = paymentMeta(v.formaPago);
-          const PagoIcon = pago.icon;
+          const pagos = pagosDeVenta(v);
+          const combinado = pagos.length > 1;
+          const PagoIcon = combinado ? Split : paymentMeta(pagos[0]?.metodo).icon;
           return (
             <div className="gy-sale-row" key={v.id}>
               <div className="gy-sale-main">
@@ -1505,7 +1591,7 @@ function JornadaTab({ sales, persistSales, triggerPrint, vistaOculta, config }) 
               </div>
               <div className="gy-sale-side">
                 <span className="gy-sale-total">{mask(`${formatUSD(v.totalUSD)} · ${formatBs(v.totalBs)}`, vistaOculta)}</span>
-                <span className="gy-sale-pago"><PagoIcon size={13} /> {pago.label}{v.referencia ? ` · Ref. ${v.referencia}` : ""}</span>
+                <span className="gy-sale-pago"><PagoIcon size={13} /> {resumenPagosTexto(pagos)}</span>
               </div>
               <button
                 type="button"
@@ -1513,7 +1599,7 @@ function JornadaTab({ sales, persistSales, triggerPrint, vistaOculta, config }) 
                 title="Imprimir tique"
                 onClick={() => triggerPrint({
                   numeroTicket: v.numeroTicket, fecha: v.fecha, mesa: v.mesa, items: v.items,
-                  totalUSD: v.totalUSD, totalBs: v.totalBs, formaPago: v.formaPago, referencia: v.referencia,
+                  totalUSD: v.totalUSD, totalBs: v.totalBs, pagos,
                 })}
               >
                 <Printer size={15} />
@@ -1576,10 +1662,13 @@ function HistorialTab({ sales, vistaOculta }) {
     const map = {};
     PAYMENT_METHODS.forEach((m) => { map[m.id] = { count: 0, usd: 0, bs: 0 }; });
     ventasMes.forEach((v) => {
-      if (!map[v.formaPago]) map[v.formaPago] = { count: 0, usd: 0, bs: 0 };
-      map[v.formaPago].count += 1;
-      map[v.formaPago].usd += v.totalUSD;
-      map[v.formaPago].bs += v.totalBs;
+      pagosDeVenta(v).forEach((p) => {
+        if (!map[p.metodo]) map[p.metodo] = { count: 0, usd: 0, bs: 0 };
+        map[p.metodo].count += 1;
+        const meta = paymentMeta(p.metodo);
+        if (meta.currency === "Bs") map[p.metodo].bs += Number(p.monto) || 0;
+        else map[p.metodo].usd += Number(p.monto) || 0;
+      });
     });
     return map;
   }, [ventasMes]);
@@ -1587,11 +1676,18 @@ function HistorialTab({ sales, vistaOculta }) {
   // El monto en $ y en Bs de cada día queda fijo con lo que ya se guardó en
   // cada venta (no se recalcula con la tasa actual), así que cambiar la tasa
   // de cambio hoy no altera los días ya cerrados.
-  const chartData = porDia.map((d) => ({
-    dia: d.fecha.slice(8, 10),
-    USD: Math.round(d.totalUSD * 100) / 100,
-    Bs: Math.round(d.totalBs),
-  }));
+  const chartData = useMemo(() => {
+    let acumulado = 0;
+    return porDia.map((d, idx) => {
+      acumulado += d.totalUSD;
+      return {
+        dia: d.fecha.slice(8, 10),
+        USD: Math.round(d.totalUSD * 100) / 100,
+        Bs: Math.round(d.totalBs),
+        promedio: Math.round((acumulado / (idx + 1)) * 100) / 100,
+      };
+    });
+  }, [porDia]);
 
   return (
     <div className="gy-stack">
@@ -1617,24 +1713,33 @@ function HistorialTab({ sales, vistaOculta }) {
 
       {chartData.length > 0 && (
         <div className="gy-chart-box">
-          <span className="gy-chart-title"><TrendingUp size={14} /> Ventas por día ($, con el equivalente en Bs de cada venta)</span>
+          <span className="gy-chart-title"><TrendingUp size={14} /> Ventas por día ($, con el equivalente en Bs de cada venta, y el promedio acumulado)</span>
           {vistaOculta ? (
             <p className="gy-empty-state">Vista oculta — desactiva el ícono del ojo para ver el gráfico.</p>
           ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+            <ResponsiveContainer width="100%" height={240}>
+              <ComposedChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E1DAC9" vertical={false} />
                 <XAxis dataKey="dia" tick={{ fontSize: 11, fill: "#6F6659" }} axisLine={{ stroke: "#E1DAC9" }} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: "#6F6659" }} axisLine={false} tickLine={false} width={44} tickFormatter={(v) => `$${v}`} />
                 <Tooltip
-                  formatter={(v, name) => name === "USD" ? [`$${Number(v).toFixed(2)}`, "Total $"] : [`${Number(v).toLocaleString("es-VE")} Bs`, "Total Bs"]}
+                  formatter={(v, name) => {
+                    if (name === "USD") return [`$${Number(v).toFixed(2)}`, "Total $"];
+                    if (name === "promedio") return [`$${Number(v).toFixed(2)}`, "Promedio acumulado"];
+                    return [`${Number(v).toLocaleString("es-VE")} Bs`, "Total Bs"];
+                  }}
                   labelFormatter={(l) => `Día ${l}`}
                   contentStyle={{ borderRadius: 10, border: "1px solid #E1DAC9", fontSize: 12 }}
+                />
+                <Legend
+                  formatter={(value) => (value === "USD" ? "Ventas del día" : "Promedio acumulado")}
+                  wrapperStyle={{ fontSize: 11 }}
                 />
                 <Bar dataKey="USD" fill="#2E6B47" radius={[5, 5, 0, 0]}>
                   <LabelList dataKey="Bs" content={<ChartBsLabel />} />
                 </Bar>
-              </BarChart>
+                <Line type="monotone" dataKey="promedio" stroke="#A23E2E" strokeWidth={2} dot={{ r: 2.5 }} />
+              </ComposedChart>
             </ResponsiveContainer>
           )}
         </div>
@@ -1647,7 +1752,7 @@ function HistorialTab({ sales, vistaOculta }) {
           return (
             <div className="gy-method-card" key={m.id}>
               <div className="gy-method-head"><Icon size={15} /><span>{m.label}</span></div>
-              <span className="gy-method-count">{d.count} tique{d.count === 1 ? "" : "s"}</span>
+              <span className="gy-method-count">{d.count} pago{d.count === 1 ? "" : "s"}</span>
               <span className="gy-method-amount">{mask(m.currency === "Bs" ? formatBs(d.bs) : formatUSD(d.usd), vistaOculta)}</span>
             </div>
           );
@@ -1660,7 +1765,7 @@ function HistorialTab({ sales, vistaOculta }) {
         ) : (
           <table className="gy-table">
             <thead>
-              <tr><th>Fecha</th><th>Tiques</th><th>Total $</th><th>Total Bs</th></tr>
+              <tr><th>Fecha</th><th>Tiques</th><th>Total $</th><th>Total Bs</th><th>Tique promedio</th></tr>
             </thead>
             <tbody>
               {porDia.map((d) => (
@@ -1669,6 +1774,7 @@ function HistorialTab({ sales, vistaOculta }) {
                   <td>{d.tickets}</td>
                   <td>{mask(formatUSD(d.totalUSD), vistaOculta)}</td>
                   <td>{mask(formatBs(d.totalBs), vistaOculta)}</td>
+                  <td>{mask(formatUSD(d.tickets > 0 ? d.totalUSD / d.tickets : 0), vistaOculta)}</td>
                 </tr>
               ))}
             </tbody>
@@ -2611,16 +2717,42 @@ function StyleBlock() {
       }
       .gy-modal h3 { font-family: 'Fraunces', serif; font-size: 16px; margin: 4px 0 0; }
       .gy-modal p { font-size: 12.5px; color: var(--muted); margin: 0 0 10px; }
+      .gy-modal-form { display: flex; flex-direction: column; gap: 14px; width: 100%; }
       .gy-modal-actions { display: flex; gap: 8px; width: 100%; }
       .gy-modal-actions button { flex: 1; }
 
       /* ---------- Submodo Pedidos: Venta directa / Mesas ---------- */
       .gy-submode-toggle { display: flex; gap: 6px; background: var(--parchment); padding: 4px; border-radius: 11px; width: fit-content; }
       .gy-submode-toggle button {
+        position: relative;
         display: flex; align-items: center; gap: 6px; border: none; background: transparent; padding: 8px 14px;
         border-radius: 8px; font-size: 12.5px; font-weight: 700; color: var(--muted); cursor: pointer;
       }
       .gy-submode-toggle button.active { background: var(--paper); color: var(--ink); box-shadow: 0 1px 0 var(--line); }
+      .gy-badge-count {
+        position: absolute; top: -6px; right: -6px; background: var(--rust); color: white;
+        font-size: 10px; font-weight: 700; min-width: 17px; height: 17px; border-radius: 999px;
+        display: flex; align-items: center; justify-content: center; padding: 0 4px; line-height: 1;
+      }
+
+      /* ---------- Formas de pago combinadas ---------- */
+      .gy-pago-empty { font-size: 12px; color: var(--muted); margin: 0 0 8px; }
+      .gy-pago-lineas { display: flex; flex-direction: column; gap: 8px; }
+      .gy-pago-linea { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; background: var(--parchment); border-radius: 9px; padding: 8px; }
+      .gy-pago-metodo { flex: 1.2; min-width: 110px; }
+      .gy-pago-monto-wrap { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 100px; }
+      .gy-pago-monto { flex: 1; min-width: 70px; }
+      .gy-pago-currency { font-size: 11.5px; color: var(--muted); font-weight: 700; white-space: nowrap; }
+      .gy-pago-ref { flex: 1; min-width: 100px; }
+      .gy-add-pago-btn { margin-top: 8px; width: fit-content; }
+      .gy-pago-resumen {
+        margin-top: 10px; padding: 9px 12px; border-radius: 9px; font-size: 12.5px; font-weight: 600;
+        display: flex; align-items: center; gap: 6px;
+      }
+      .gy-pago-resumen.ok { background: #E8F0EA; color: var(--forest-dark); }
+      .gy-pago-resumen.falta { background: #FBEAE6; color: var(--rust); }
+      .gy-pago-resumen.vuelto { background: #FDF3E0; color: #8A5A1E; }
+      .gy-ticket-pago-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
 
       /* ---------- Mesas ---------- */
       .gy-mesas-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
