@@ -748,58 +748,73 @@ function PedidosTab({ products, config, sales, mesas, persistSales, persistProdu
 /*  Formas de pago combinadas (una venta puede pagarse con varias)      */
 /* ------------------------------------------------------------------ */
 
+// Resuelve el monto real de cada línea de pago: si solo hay una forma de
+// pago seleccionada, se asume que cubre el 100% del total (no hace falta
+// escribir el monto). Si hay dos o más, se usa lo que el usuario escribió
+// en la celda de cada botón.
+function resolvePagos(pagos, totalUSD, totalBs) {
+  if (pagos.length === 1) {
+    const meta = paymentMeta(pagos[0].metodo);
+    return [{ ...pagos[0], monto: meta.currency === "Bs" ? totalBs : totalUSD }];
+  }
+  return pagos.map((p) => ({ ...p, monto: Number(p.monto) || 0 }));
+}
+
 function PagoMultipleForm({ pagos, setPagos, totalUSD, config, errorPagos }) {
-  function addLine() {
-    setPagos((prev) => [...prev, { id: uid("pago"), metodo: "", monto: "", referencia: "" }]);
+  const totalBs = totalUSD * config.tasaCambio;
+  const multiple = pagos.length > 1;
+
+  function toggleMetodo(metodoId) {
+    setPagos((prev) => {
+      const existe = prev.find((p) => p.metodo === metodoId);
+      if (existe) return prev.filter((p) => p.metodo !== metodoId);
+      return [...prev, { metodo: metodoId, monto: "", referencia: "" }];
+    });
   }
-  function updateLine(id, field, value) {
-    setPagos((prev) => prev.map((p) => (p.id === id ? { ...p, [field]: value } : p)));
-  }
-  function removeLine(id) {
-    setPagos((prev) => prev.filter((p) => p.id !== id));
+  function updateCampo(metodoId, campo, value) {
+    setPagos((prev) => prev.map((p) => (p.metodo === metodoId ? { ...p, [campo]: value } : p)));
   }
 
-  const cubiertoUSD = pagos.reduce((sum, p) => sum + (p.metodo ? montoLineaEnUSD(p, config.tasaCambio) : 0), 0);
+  const resueltos = resolvePagos(pagos, totalUSD, totalBs);
+  const cubiertoUSD = resueltos.reduce((sum, p) => sum + montoLineaEnUSD(p, config.tasaCambio), 0);
   const restanteUSD = totalUSD - cubiertoUSD;
   const cubierto = Math.abs(restanteUSD) < 0.015;
 
   return (
     <div className="gy-field">
-      <label>Forma(s) de pago</label>
+      <label>Forma(s) de pago <span className="gy-field-hint">(elige una, o varias si se paga combinado)</span></label>
 
-      {pagos.length === 0 && <p className="gy-pago-empty">Aún no has agregado ninguna forma de pago.</p>}
-
-      <div className="gy-pago-lineas">
-        {pagos.map((p) => {
-          const meta = p.metodo ? paymentMeta(p.metodo) : null;
+      <div className="gy-payment-grid">
+        {PAYMENT_METHODS.map((m) => {
+          const Icon = m.icon;
+          const pago = pagos.find((p) => p.metodo === m.id);
+          const active = !!pago;
           return (
-            <div className="gy-pago-linea" key={p.id}>
-              <select className="gy-input gy-input-sm gy-pago-metodo" value={p.metodo} onChange={(e) => updateLine(p.id, "metodo", e.target.value)}>
-                <option value="">Método…</option>
-                {PAYMENT_METHODS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
-              </select>
-              <div className="gy-pago-monto-wrap">
+            <div key={m.id} className={`gy-payment-cell ${active ? "active" : ""}`}>
+              <button type="button" className={`gy-payment-btn ${active ? "active" : ""}`} onClick={() => toggleMetodo(m.id)}>
+                <Icon size={16} />
+                <span>{m.label}</span>
+              </button>
+              {active && multiple && (
+                <div className="gy-payment-monto-cell">
+                  <input
+                    type="number" step="0.01" placeholder="Monto" value={pago.monto}
+                    onChange={(e) => updateCampo(m.id, "monto", e.target.value)}
+                  />
+                  <span className="gy-payment-currency-tag">{m.currency}</span>
+                </div>
+              )}
+              {active && m.id === "pago_movil" && (
                 <input
-                  type="number" step="0.01" className="gy-input gy-input-sm gy-pago-monto"
-                  placeholder="Monto" value={p.monto}
-                  onChange={(e) => updateLine(p.id, "monto", e.target.value)}
-                />
-                <span className="gy-pago-currency">{meta ? meta.currency : ""}</span>
-              </div>
-              {p.metodo === "pago_movil" && (
-                <input
-                  type="text" inputMode="numeric" className="gy-input gy-input-sm gy-pago-ref"
-                  placeholder="N° referencia" value={p.referencia}
-                  onChange={(e) => updateLine(p.id, "referencia", e.target.value)}
+                  type="text" inputMode="numeric" className="gy-payment-ref-cell"
+                  placeholder="N° referencia" value={pago.referencia}
+                  onChange={(e) => updateCampo(m.id, "referencia", e.target.value)}
                 />
               )}
-              <button type="button" className="gy-icon-btn-danger" onClick={() => removeLine(p.id)}><Trash2 size={14} /></button>
             </div>
           );
         })}
       </div>
-
-      <button type="button" className="gy-btn-ghost gy-add-pago-btn" onClick={addLine}><Plus size={14} /> Agregar forma de pago</button>
 
       {pagos.length > 0 && (
         <div className={`gy-pago-resumen ${cubierto ? "ok" : restanteUSD > 0 ? "falta" : "vuelto"}`}>
@@ -908,13 +923,14 @@ function NuevaVentaTab({ products, config, sales, persistSales, persistProducts,
     if (cart.length === 0) errs.cart = "Agrega al menos un producto.";
     if (!numeroTicket.trim()) errs.numeroTicket = "Coloca el número de tique.";
     if (pagos.length === 0) {
-      errs.pagos = "Agrega al menos una forma de pago.";
-    } else if (pagos.some((p) => !p.metodo || !p.monto || Number(p.monto) <= 0)) {
-      errs.pagos = "Completa el método y el monto de cada forma de pago.";
+      errs.pagos = "Selecciona al menos una forma de pago.";
+    } else if (pagos.length > 1 && pagos.some((p) => !p.monto || Number(p.monto) <= 0)) {
+      errs.pagos = "Coloca el monto de cada forma de pago seleccionada.";
     } else if (pagos.some((p) => p.metodo === "pago_movil" && !p.referencia.trim())) {
       errs.pagos = "Coloca el número de referencia de Pago Móvil.";
     } else {
-      const cubiertoUSD = pagos.reduce((sum, p) => sum + montoLineaEnUSD(p, config.tasaCambio), 0);
+      const resueltos = resolvePagos(pagos, totalUSD, totalBs);
+      const cubiertoUSD = resueltos.reduce((sum, p) => sum + montoLineaEnUSD(p, config.tasaCambio), 0);
       if (totalUSD - cubiertoUSD > 0.015) errs.pagos = "Las formas de pago no cubren el total de la venta.";
     }
     setErrors(errs);
@@ -923,9 +939,9 @@ function NuevaVentaTab({ products, config, sales, persistSales, persistProducts,
 
   async function handleGuardar() {
     if (!validate()) return;
-    const pagosLimpios = pagos.map((p) => ({
+    const pagosLimpios = resolvePagos(pagos, totalUSD, totalBs).map((p) => ({
       metodo: p.metodo,
-      monto: Number(p.monto) || 0,
+      monto: p.monto,
       referencia: p.metodo === "pago_movil" ? p.referencia.trim() : "",
     }));
     const nueva = {
@@ -958,8 +974,8 @@ function NuevaVentaTab({ products, config, sales, persistSales, persistProducts,
   }
 
   function handlePrint() {
-    const pagosLimpios = pagos.filter((p) => p.metodo).map((p) => ({
-      metodo: p.metodo, monto: Number(p.monto) || 0,
+    const pagosLimpios = resolvePagos(pagos, totalUSD, totalBs).map((p) => ({
+      metodo: p.metodo, monto: p.monto,
       referencia: p.metodo === "pago_movil" ? p.referencia : "",
     }));
     triggerPrint({
@@ -1086,10 +1102,10 @@ function NuevaVentaTab({ products, config, sales, persistSales, persistProducts,
 
           {pagos.filter((p) => p.metodo).length > 0 && (
             <div className="gy-ticket-pago-list">
-              {pagos.filter((p) => p.metodo).map((p) => {
+              {resolvePagos(pagos, totalUSD, totalBs).filter((p) => p.metodo).map((p) => {
                 const meta = paymentMeta(p.metodo);
                 return (
-                  <div className="gy-ticket-pago" key={p.id}>
+                  <div className="gy-ticket-pago" key={p.metodo}>
                     <meta.icon size={14} />
                     <span>{meta.label} {formatMontoPago(p)}</span>
                     {p.metodo === "pago_movil" && p.referencia && <span className="gy-ticket-ref">Ref. {p.referencia}</span>}
@@ -1308,13 +1324,14 @@ function MesaDetalle({ mesa, products, config, sales, persistSales, persistProdu
     if (mesa.items.length === 0) errs.cart = "Agrega al menos un producto antes de cobrar.";
     if (!numeroTicket.trim()) errs.numeroTicket = "Coloca el número de tique.";
     if (pagos.length === 0) {
-      errs.pagos = "Agrega al menos una forma de pago.";
-    } else if (pagos.some((p) => !p.metodo || !p.monto || Number(p.monto) <= 0)) {
-      errs.pagos = "Completa el método y el monto de cada forma de pago.";
+      errs.pagos = "Selecciona al menos una forma de pago.";
+    } else if (pagos.length > 1 && pagos.some((p) => !p.monto || Number(p.monto) <= 0)) {
+      errs.pagos = "Coloca el monto de cada forma de pago seleccionada.";
     } else if (pagos.some((p) => p.metodo === "pago_movil" && !p.referencia.trim())) {
       errs.pagos = "Coloca el número de referencia de Pago Móvil.";
     } else {
-      const cubiertoUSD = pagos.reduce((sum, p) => sum + montoLineaEnUSD(p, config.tasaCambio), 0);
+      const resueltos = resolvePagos(pagos, totalUSD, totalBs);
+      const cubiertoUSD = resueltos.reduce((sum, p) => sum + montoLineaEnUSD(p, config.tasaCambio), 0);
       if (totalUSD - cubiertoUSD > 0.015) errs.pagos = "Las formas de pago no cubren el total de la cuenta.";
     }
     setErrors(errs);
@@ -1323,9 +1340,9 @@ function MesaDetalle({ mesa, products, config, sales, persistSales, persistProdu
 
   async function handleCobrar() {
     if (!validate()) return;
-    const pagosLimpios = pagos.map((p) => ({
+    const pagosLimpios = resolvePagos(pagos, totalUSD, totalBs).map((p) => ({
       metodo: p.metodo,
-      monto: Number(p.monto) || 0,
+      monto: p.monto,
       referencia: p.metodo === "pago_movil" ? p.referencia.trim() : "",
     }));
     const fecha = todayISO();
@@ -1356,8 +1373,8 @@ function MesaDetalle({ mesa, products, config, sales, persistSales, persistProdu
   }
 
   function handlePrintPreview() {
-    const pagosLimpios = pagos.filter((p) => p.metodo).map((p) => ({
-      metodo: p.metodo, monto: Number(p.monto) || 0,
+    const pagosLimpios = resolvePagos(pagos, totalUSD, totalBs).filter((p) => p.metodo).map((p) => ({
+      metodo: p.metodo, monto: p.monto,
       referencia: p.metodo === "pago_movil" ? p.referencia : "",
     }));
     triggerPrint({
@@ -1468,10 +1485,10 @@ function MesaDetalle({ mesa, products, config, sales, persistSales, persistProdu
 
           {pagos.filter((p) => p.metodo).length > 0 && (
             <div className="gy-ticket-pago-list">
-              {pagos.filter((p) => p.metodo).map((p) => {
+              {resolvePagos(pagos, totalUSD, totalBs).filter((p) => p.metodo).map((p) => {
                 const meta = paymentMeta(p.metodo);
                 return (
-                  <div className="gy-ticket-pago" key={p.id}>
+                  <div className="gy-ticket-pago" key={p.metodo}>
                     <meta.icon size={14} />
                     <span>{meta.label} {formatMontoPago(p)}</span>
                     {p.metodo === "pago_movil" && p.referencia && <span className="gy-ticket-ref">Ref. {p.referencia}</span>}
@@ -2545,13 +2562,30 @@ function StyleBlock() {
       .gy-dd-cat.low { color: var(--rust); font-weight: 700; }
       .gy-dd-price { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--caramel-dark); white-space: nowrap; }
 
-      .gy-payment-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(115px,1fr)); gap: 8px; }
+      .gy-payment-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(115px,1fr)); gap: 8px; align-items: start; }
+      .gy-payment-cell { display: flex; flex-direction: column; gap: 6px; }
       .gy-payment-btn {
+        width: 100%;
         display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 12px 6px;
         border: 1px solid var(--line); background: var(--paper); border-radius: 10px; cursor: pointer;
         font-size: 12px; font-weight: 600; color: var(--muted); font-family: 'Inter', sans-serif;
       }
       .gy-payment-btn.active { background: var(--forest); border-color: var(--forest); color: white; }
+      .gy-field-hint { text-transform: none; font-weight: 500; letter-spacing: normal; color: var(--muted); font-size: 11px; }
+      .gy-payment-monto-cell {
+        display: flex; align-items: center; gap: 4px; background: var(--paper); border: 1px solid var(--caramel);
+        border-radius: 8px; padding: 5px 8px;
+      }
+      .gy-payment-monto-cell input {
+        border: none; outline: none; background: transparent; width: 100%; min-width: 0; font-size: 12.5px;
+        font-family: 'IBM Plex Mono', monospace; color: var(--ink);
+      }
+      .gy-payment-currency-tag { font-size: 10.5px; color: var(--muted); font-weight: 700; white-space: nowrap; }
+      .gy-payment-ref-cell {
+        border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font-size: 11.5px;
+        background: var(--paper); color: var(--ink); font-family: 'Inter', sans-serif; outline: none; width: 100%;
+      }
+      .gy-payment-ref-cell:focus { border-color: var(--caramel); }
 
       .gy-error-text { color: var(--rust); font-size: 12px; margin: 2px 0 0; }
 
