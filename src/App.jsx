@@ -6,9 +6,11 @@ import {
   ArrowLeftRight, CalendarDays, Printer, Lock, Unlock, Boxes,
   Eye, EyeOff, KeyRound, ChevronDown, ChevronRight, ArrowLeft,
   ImagePlus, LayoutGrid, Croissant, UtensilsCrossed, ChefHat, Store,
-  Pizza, IceCream2, CupSoda, Cookie, Sandwich, ShieldCheck, Split
+  Pizza, IceCream2, CupSoda, Cookie, Sandwich, ShieldCheck, Split,
+  Send, BookOpen, Truck, Award, ChevronUp, FileDown, CalendarClock
 } from "lucide-react";
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList } from "recharts";
+import { Document, Page, View, Text, Image as PDFImage, StyleSheet, pdf } from "@react-pdf/renderer";
 
 /* ------------------------------------------------------------------ */
 /*  Datos base                                                         */
@@ -19,6 +21,8 @@ const STORAGE_KEYS = {
   CONFIG: "avp_config",
   SALES: "avp_ventas",
   MESAS: "avp_mesas",
+  MENU: "avp_menu_publico",
+  PROVEEDORES: "avp_proveedores",
 };
 
 const CATEGORIAS_BASE = ["Bebidas", "Chuchería", "Menú"];
@@ -142,6 +146,54 @@ const DEFAULT_PRODUCTS = [
   { id: "m22", name: "Club House + PAPAS", category: "Menú", priceUSD: 12.0, stock: 0, alertaStock: 5, costo: 0 },
 ];
 
+// Menú público (el que se muestra a los clientes e imprime en PDF).
+// Cada ítem guarda su propio precio en $ y se muestra también en Bs
+// usando la tasa de cambio vigente, así que siempre queda sincronizado
+// sin tener que tocar el PDF a mano.
+const DEFAULT_MENU = {
+  secciones: [
+    {
+      id: "sec_desayunos", nombre: "Desayunos",
+      items: [
+        { id: "mi1", nombre: "Empanadas", descripcion: "Carne mechada / Queso / Dominó / Carne Molida / Jamón y Queso / Pollo", precioUSD: 1.3, promo: false },
+        { id: "mi2", nombre: "Tequeñones de queso", descripcion: "", precioUSD: 1.5, promo: false },
+        { id: "mi3", nombre: "2 Tequeñones", descripcion: "Promo estudiantil", precioUSD: 1.99, promo: true, promoLabel: "Promo estudiantil" },
+        { id: "mi4", nombre: "Pastelitos", descripcion: "Carne mechada / Queso / Jamón y Queso / Pollo", precioUSD: 1.5, promo: false },
+        { id: "mi5", nombre: "Sandwich", descripcion: "Lechuga, tomate, jamón, queso y salsas", precioUSD: 3.0, promo: false },
+      ],
+    },
+    {
+      id: "sec_almuerzos", nombre: "Almuerzos",
+      items: [
+        { id: "mi6", nombre: "Milanesa de pollo, Chuleta de cerdo o Bistec de carne", descripcion: "Contornos: arroz, papas al vapor, puré de papas, ensalada mixta, tajadas", precioUSD: 10.0, promo: false },
+        { id: "mi7", nombre: "Arróz Chino + lumpia", descripcion: "Arroz frito con pollo y vegetales salteados", precioUSD: 7.0, promo: false },
+        { id: "mi8", nombre: "Chuleta ahumada con arróz y ensalada", descripcion: "Almuerzo estudiantil", precioUSD: 7.5, promo: true, promoLabel: "Almuerzo estudiantil" },
+      ],
+    },
+    {
+      id: "sec_comida_rapida", nombre: "Comida Rápida",
+      items: [
+        { id: "mi9", nombre: "Hamburguesa Clásica", descripcion: "", precioUSD: 6.0, promo: false },
+        { id: "mi10", nombre: "Hamburguesa Especial + papas fritas", descripcion: "", precioUSD: 9.0, promo: false },
+        { id: "mi11", nombre: "Club house + papas fritas", descripcion: "", precioUSD: 10.0, promo: false },
+        { id: "mi12", nombre: "Pizza margarita", descripcion: "", precioUSD: 7.0, promo: false },
+        { id: "mi13", nombre: "Perro caliente", descripcion: "", precioUSD: 3.0, promo: false },
+      ],
+    },
+    {
+      id: "sec_bebidas", nombre: "Bebidas",
+      items: [
+        { id: "mi14", nombre: "Agua - 500ml", descripcion: "", precioUSD: 1.3, promo: false },
+        { id: "mi15", nombre: "Café grande 8oz", descripcion: "", precioUSD: 2.5, promo: false },
+        { id: "mi16", nombre: "Café pequeño 4oz", descripcion: "", precioUSD: 1.5, promo: false },
+        { id: "mi17", nombre: "Refresco RET 350ml", descripcion: "", precioUSD: 1.2, promo: false },
+        { id: "mi18", nombre: "Batidos", descripcion: "", precioUSD: 3.0, promo: false },
+        { id: "mi19", nombre: "Lipton", descripcion: "", precioUSD: 3.0, promo: false },
+      ],
+    },
+  ],
+};
+
 const DEFAULT_CONFIG = {
   tasaCambio: 800,
   nombreComercio: "Delicias A.V.P.",
@@ -167,6 +219,8 @@ const TABS = [
   { id: "jornada", label: "Jornada", icon: ClipboardList },
   { id: "historial", label: "Historial", icon: BarChart3 },
   { id: "productos", label: "Productos", icon: Coffee },
+  { id: "menu", label: "Menú", icon: BookOpen },
+  { id: "proveedores", label: "Proveedores", icon: Truck },
   { id: "config", label: "Configuración", icon: Settings },
 ];
 
@@ -200,6 +254,11 @@ function todayISO() {
 }
 function thisMonthKey() {
   return todayISO().slice(0, 7);
+}
+function addDays(iso, days) {
+  const d = new Date(`${iso}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
 }
 function formatUSD(n) {
   return `$${(Number(n) || 0).toFixed(2)}`;
@@ -301,6 +360,8 @@ export default function App() {
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [sales, setSales] = useState([]);
   const [mesas, setMesas] = useState([]);
+  const [menu, setMenu] = useState(DEFAULT_MENU);
+  const [proveedores, setProveedores] = useState([]);
   const [displayCurrency, setDisplayCurrency] = useState("USD"); // 'USD' | 'BS'
   const [toast, setToast] = useState(null);
   const [printData, setPrintData] = useState(null);
@@ -329,11 +390,13 @@ export default function App() {
   // Carga inicial
   useEffect(() => {
     (async () => {
-      let p = null, c = null, s = null, m = null;
+      let p = null, c = null, s = null, m = null, mn = null, pr = null;
       try { p = await window.storage.get(STORAGE_KEYS.PRODUCTS); } catch (e) { /* no existe aún */ }
       try { c = await window.storage.get(STORAGE_KEYS.CONFIG); } catch (e) { /* no existe aún */ }
       try { s = await window.storage.get(STORAGE_KEYS.SALES); } catch (e) { /* no existe aún */ }
       try { m = await window.storage.get(STORAGE_KEYS.MESAS); } catch (e) { /* no existe aún */ }
+      try { mn = await window.storage.get(STORAGE_KEYS.MENU); } catch (e) { /* no existe aún */ }
+      try { pr = await window.storage.get(STORAGE_KEYS.PROVEEDORES); } catch (e) { /* no existe aún */ }
 
       // Los productos guardados pueden venir de una versión anterior sin
       // "costo" — lo completamos para que el resto del código no falle.
@@ -348,16 +411,22 @@ export default function App() {
 
       const initialSales = s ? JSON.parse(s.value) : [];
       const initialMesas = m ? JSON.parse(m.value) : [];
+      const initialMenu = mn ? JSON.parse(mn.value) : DEFAULT_MENU;
+      const initialProveedores = pr ? JSON.parse(pr.value) : [];
 
       setProducts(initialProducts);
       setConfig(initialConfig);
       setSales(initialSales);
       setMesas(initialMesas);
+      setMenu(initialMenu);
+      setProveedores(initialProveedores);
 
       try {
         if (!p) await window.storage.set(STORAGE_KEYS.PRODUCTS, JSON.stringify(DEFAULT_PRODUCTS));
         if (!c) await window.storage.set(STORAGE_KEYS.CONFIG, JSON.stringify(DEFAULT_CONFIG));
         if (!m) await window.storage.set(STORAGE_KEYS.MESAS, JSON.stringify([]));
+        if (!mn) await window.storage.set(STORAGE_KEYS.MENU, JSON.stringify(DEFAULT_MENU));
+        if (!pr) await window.storage.set(STORAGE_KEYS.PROVEEDORES, JSON.stringify([]));
       } catch (e) { /* se reintenta en el próximo guardado */ }
 
       setLoading(false);
@@ -388,19 +457,40 @@ export default function App() {
     catch (e) { showToast("No se pudo guardar la mesa. Intenta de nuevo."); }
   }, [showToast]);
 
+  const persistMenu = useCallback(async (next) => {
+    setMenu(next);
+    try { await window.storage.set(STORAGE_KEYS.MENU, JSON.stringify(next)); }
+    catch (e) { showToast("No se pudo guardar el menú. Intenta de nuevo."); }
+  }, [showToast]);
+
+  const persistProveedores = useCallback(async (next) => {
+    setProveedores(next);
+    try { await window.storage.set(STORAGE_KEYS.PROVEEDORES, JSON.stringify(next)); }
+    catch (e) { showToast("No se pudo guardar el proveedor. Intenta de nuevo."); }
+  }, [showToast]);
+
   const resetAll = useCallback(async () => {
     try {
       await window.storage.set(STORAGE_KEYS.PRODUCTS, JSON.stringify(DEFAULT_PRODUCTS));
       await window.storage.set(STORAGE_KEYS.CONFIG, JSON.stringify(DEFAULT_CONFIG));
       await window.storage.set(STORAGE_KEYS.SALES, JSON.stringify([]));
       await window.storage.set(STORAGE_KEYS.MESAS, JSON.stringify([]));
+      await window.storage.set(STORAGE_KEYS.MENU, JSON.stringify(DEFAULT_MENU));
+      await window.storage.set(STORAGE_KEYS.PROVEEDORES, JSON.stringify([]));
       setProducts(DEFAULT_PRODUCTS);
       setConfig(DEFAULT_CONFIG);
       setSales([]);
       setMesas([]);
+      setMenu(DEFAULT_MENU);
+      setProveedores([]);
       showToast("Datos restablecidos.", "ok");
     } catch (e) { showToast("No se pudo restablecer los datos."); }
   }, [showToast]);
+
+  const proveedoresVencidos = useMemo(
+    () => proveedores.filter((p) => !p.pagado && p.fechaVencimiento < todayISO()).length,
+    [proveedores]
+  );
 
   if (loading) {
     return (
@@ -434,7 +524,7 @@ export default function App() {
         setVistaOculta={setVistaOculta}
         onCerrarCaja={() => setCajaAbierta(false)}
       />
-      <TabNav tab={tab} setTab={setTab} />
+      <TabNav tab={tab} setTab={setTab} proveedoresVencidos={proveedoresVencidos} />
 
       <main className="gy-main">
         {tab === "pedidos" && (
@@ -463,6 +553,23 @@ export default function App() {
             persistProducts={persistProducts}
             config={config}
             displayCurrency={displayCurrency}
+          />
+        )}
+        {tab === "menu" && (
+          <MenuTab
+            menu={menu}
+            persistMenu={persistMenu}
+            products={products}
+            config={config}
+            showToast={showToast}
+          />
+        )}
+        {tab === "proveedores" && (
+          <ProveedoresTab
+            proveedores={proveedores}
+            persistProveedores={persistProveedores}
+            config={config}
+            showToast={showToast}
           />
         )}
         {tab === "config" && (
@@ -537,6 +644,18 @@ function AperturaCaja({ config, onAbrir }) {
 
 function Header({ config, displayCurrency, setDisplayCurrency, vistaOculta, setVistaOculta, onCerrarCaja }) {
   const BrandIcon = iconById(config.logoIcono);
+  const [pidiendoClave, setPidiendoClave] = useState(false);
+
+  function handleEyeClick() {
+    if (vistaOculta) {
+      // Volver a mostrar los números requiere autorización del operador
+      setPidiendoClave(true);
+    } else {
+      // Ocultar es inmediato, no requiere clave
+      setVistaOculta(true);
+    }
+  }
+
   return (
     <header className="gy-header">
       <div className="gy-brand">
@@ -560,8 +679,8 @@ function Header({ config, displayCurrency, setDisplayCurrency, vistaOculta, setV
         <button
           type="button"
           className="gy-icon-toggle"
-          onClick={() => setVistaOculta((v) => !v)}
-          title={vistaOculta ? "Mostrar tasa y totales" : "Ocultar tasa y totales"}
+          onClick={handleEyeClick}
+          title={vistaOculta ? "Mostrar tasa y totales (pide clave)" : "Ocultar tasa y totales"}
         >
           {vistaOculta ? <EyeOff size={16} /> : <Eye size={16} />}
         </button>
@@ -578,11 +697,20 @@ function Header({ config, displayCurrency, setDisplayCurrency, vistaOculta, setV
           <Lock size={16} />
         </button>
       </div>
+
+      <OperatorGateModal
+        open={pidiendoClave}
+        config={config}
+        title="Mostrar tasa y totales"
+        mensaje="Se requiere la clave de operador para volver a mostrar la información oculta."
+        onCancel={() => setPidiendoClave(false)}
+        onConfirm={() => { setVistaOculta(false); setPidiendoClave(false); }}
+      />
     </header>
   );
 }
 
-function TabNav({ tab, setTab }) {
+function TabNav({ tab, setTab, proveedoresVencidos }) {
   return (
     <nav className="gy-tabnav">
       {TABS.map((t) => {
@@ -596,6 +724,9 @@ function TabNav({ tab, setTab }) {
           >
             <Icon size={17} />
             <span>{t.label}</span>
+            {t.id === "proveedores" && proveedoresVencidos > 0 && (
+              <span className="gy-badge-count">{proveedoresVencidos}</span>
+            )}
           </button>
         );
       })}
@@ -718,11 +849,14 @@ function PedidosTab({ products, config, sales, mesas, persistSales, persistProdu
           products={products}
           config={config}
           sales={sales}
+          mesas={mesas}
           persistSales={persistSales}
           persistProducts={persistProducts}
+          persistMesas={persistMesas}
           displayCurrency={displayCurrency}
           showToast={showToast}
           triggerPrint={triggerPrint}
+          onEnviadoAMesa={() => setModo("mesas")}
         />
       )}
 
@@ -837,7 +971,7 @@ function PagoMultipleForm({ pagos, setPagos, totalUSD, config, errorPagos }) {
 /*  Tab: Nueva Venta (venta directa, de una sola vez)                   */
 /* ------------------------------------------------------------------ */
 
-function NuevaVentaTab({ products, config, sales, persistSales, persistProducts, displayCurrency, showToast, triggerPrint }) {
+function NuevaVentaTab({ products, config, sales, mesas, persistSales, persistProducts, persistMesas, displayCurrency, showToast, triggerPrint, onEnviadoAMesa }) {
   const [fecha, setFecha] = useState(todayISO());
   const [cart, setCart] = useState([]); // {productId, name, priceUSD, qty}
   const [query, setQuery] = useState("");
@@ -846,7 +980,21 @@ function NuevaVentaTab({ products, config, sales, persistSales, persistProducts,
   const [numeroTicket, setNumeroTicket] = useState("");
   const [pagos, setPagos] = useState([]);
   const [errors, setErrors] = useState({});
+  const [showEnviarMesa, setShowEnviarMesa] = useState(false);
+  const [nombreMesaDestino, setNombreMesaDestino] = useState("");
   const inputRef = useRef(null);
+
+  async function handleEnviarAMesa() {
+    const nombre = nombreMesaDestino.trim();
+    if (cart.length === 0 || !nombre) return;
+    const nueva = { id: uid("mesa"), nombre, items: cart, fecha: todayISO(), createdAt: new Date().toISOString() };
+    await persistMesas([...mesas, nueva]);
+    showToast(`Pedido enviado a «${nombre}».`, "ok");
+    setCart([]);
+    setShowEnviarMesa(false);
+    setNombreMesaDestino("");
+    onEnviadoAMesa && onEnviadoAMesa();
+  }
 
   const suggestTicket = useCallback((forFecha, salesList) => {
     const count = salesList.filter((s) => s.fecha === forFecha).length;
@@ -1116,9 +1264,37 @@ function NuevaVentaTab({ products, config, sales, persistSales, persistProducts,
           )}
         </div>
 
+        {showEnviarMesa && (
+          <div className="gy-enviar-mesa-form">
+            <input
+              className="gy-input gy-input-sm"
+              placeholder="Nombre o número de mesa"
+              value={nombreMesaDestino}
+              onChange={(e) => setNombreMesaDestino(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleEnviarAMesa(); }}
+              autoFocus
+            />
+            <button type="button" className="gy-btn-primary" onClick={handleEnviarAMesa} disabled={!nombreMesaDestino.trim()}>
+              <Check size={14} /> Enviar
+            </button>
+            <button type="button" className="gy-btn-ghost" onClick={() => { setShowEnviarMesa(false); setNombreMesaDestino(""); }}>
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
         <div className="gy-ticket-actions">
           <button type="button" className="gy-btn-ghost gy-print-btn" onClick={handlePrint} disabled={cart.length === 0}>
             <Printer size={16} /> Imprimir
+          </button>
+          <button
+            type="button"
+            className="gy-btn-ghost gy-print-btn"
+            onClick={() => setShowEnviarMesa((v) => !v)}
+            disabled={cart.length === 0}
+            title="Enviar este pedido a una mesa para seguir agregando después"
+          >
+            <Send size={16} /> A mesa
           </button>
           <button type="button" className="gy-btn-primary gy-save-btn" onClick={handleGuardar}>
             <Check size={17} /> Registrar venta
@@ -1526,6 +1702,7 @@ function MesaDetalle({ mesa, products, config, sales, persistSales, persistProdu
 function JornadaTab({ sales, persistSales, triggerPrint, vistaOculta, config }) {
   const [fecha, setFecha] = useState(todayISO());
   const [gateSaleId, setGateSaleId] = useState(null);
+  const [metodosSeleccionados, setMetodosSeleccionados] = useState(() => new Set());
 
   const ventasDia = useMemo(
     () => sales.filter((s) => s.fecha === fecha).sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
@@ -1549,6 +1726,21 @@ function JornadaTab({ sales, persistSales, triggerPrint, vistaOculta, config }) 
     });
     return map;
   }, [ventasDia]);
+
+  function toggleMetodo(id) {
+    setMetodosSeleccionados((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  // Ventas que incluyen al menos uno de los métodos seleccionados (un pago
+  // mixto cuenta para cada método que lo compone).
+  const ventasFiltradas = useMemo(() => {
+    if (metodosSeleccionados.size === 0) return ventasDia;
+    return ventasDia.filter((v) => pagosDeVenta(v).some((p) => metodosSeleccionados.has(p.metodo)));
+  }, [ventasDia, metodosSeleccionados]);
 
   async function handleDelete(id) {
     await persistSales(sales.filter((s) => s.id !== id));
@@ -1581,21 +1773,41 @@ function JornadaTab({ sales, persistSales, triggerPrint, vistaOculta, config }) 
         {PAYMENT_METHODS.map((m) => {
           const d = porMetodo[m.id] || { count: 0, usd: 0, bs: 0 };
           const Icon = m.icon;
+          const activo = metodosSeleccionados.has(m.id);
           return (
-            <div className="gy-method-card" key={m.id}>
+            <button
+              type="button"
+              className={`gy-method-card gy-method-card-btn ${activo ? "active" : ""}`}
+              key={m.id}
+              onClick={() => toggleMetodo(m.id)}
+              title="Ver los tiques pagados con este método"
+            >
               <div className="gy-method-head"><Icon size={15} /><span>{m.label}</span></div>
               <span className="gy-method-count">{d.count} pago{d.count === 1 ? "" : "s"}</span>
               <span className="gy-method-amount">{mask(m.currency === "Bs" ? formatBs(d.bs) : formatUSD(d.usd), vistaOculta)}</span>
-            </div>
+            </button>
           );
         })}
       </div>
 
+      {metodosSeleccionados.size > 0 && (
+        <div className="gy-filtro-chip">
+          <span>
+            Mostrando tiques pagados con: {[...metodosSeleccionados].map((id) => paymentMeta(id).label).join(" + ")}
+          </span>
+          <button type="button" onClick={() => setMetodosSeleccionados(new Set())}><X size={13} /> Quitar filtro</button>
+        </div>
+      )}
+
       <div className="gy-list">
-        {ventasDia.length === 0 && (
-          <p className="gy-empty-state">No hay ventas registradas para el {formatFechaLarga(fecha)}.</p>
+        {ventasFiltradas.length === 0 && (
+          <p className="gy-empty-state">
+            {metodosSeleccionados.size > 0
+              ? "Ningún tique del día usó los métodos seleccionados."
+              : `No hay ventas registradas para el ${formatFechaLarga(fecha)}.`}
+          </p>
         )}
-        {ventasDia.map((v) => {
+        {ventasFiltradas.map((v) => {
           const pagos = pagosDeVenta(v);
           const combinado = pagos.length > 1;
           const PagoIcon = combinado ? Split : paymentMeta(pagos[0]?.metodo).icon;
@@ -1706,12 +1918,41 @@ function HistorialTab({ sales, vistaOculta }) {
     });
   }, [porDia]);
 
+  const rankingProductos = useMemo(() => {
+    const map = {};
+    ventasMes.forEach((v) => {
+      v.items.forEach((i) => {
+        if (!map[i.name]) map[i.name] = { name: i.name, qty: 0 };
+        map[i.name].qty += i.qty;
+      });
+    });
+    return Object.values(map).sort((a, b) => b.qty - a.qty).slice(0, 8);
+  }, [ventasMes]);
+
   return (
     <div className="gy-stack">
-      <div className="gy-field gy-date-picker">
-        <label><CalendarDays size={15} /> Mes</label>
-        <input type="month" value={mes} onChange={(e) => setMes(e.target.value)} className="gy-input" />
+      <div className="gy-historial-top">
+        <div className="gy-field gy-date-picker" style={{ marginBottom: 0 }}>
+          <label><CalendarDays size={15} /> Mes</label>
+          <input type="month" value={mes} onChange={(e) => setMes(e.target.value)} className="gy-input" />
+        </div>
+
+        {rankingProductos.length > 0 && (
+          <div className="gy-ranking-box">
+            <span className="gy-ranking-title"><Award size={14} /> Más vendidos del mes</span>
+            <div className="gy-ranking-strip">
+              {rankingProductos.map((p, idx) => (
+                <div className="gy-ranking-chip" key={p.name}>
+                  <span className="gy-ranking-pos">{idx + 1}</span>
+                  <span className="gy-ranking-name">{p.name}</span>
+                  <span className="gy-ranking-qty">{p.qty}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
+
 
       <div className="gy-summary-cards">
         <div className="gy-card">
@@ -1980,6 +2221,442 @@ function ProductosTab({ products, persistProducts, config, displayCurrency }) {
         onConfirm={() => { const fn = gateAction; setGateAction(null); fn && fn(); }}
       />
     </div>
+  );
+}
+
+
+/* ------------------------------------------------------------------ */
+/*  Tab: Proveedores (cuentas por pagar)                                */
+/* ------------------------------------------------------------------ */
+
+function ProveedoresTab({ proveedores, persistProveedores, config, showToast }) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [draft, setDraft] = useState({ numeroFactura: "", nombre: "", fechaIngreso: todayISO(), fechaVencimiento: todayISO(), monto: "", moneda: "USD" });
+  const [editingId, setEditingId] = useState(null);
+  const [filtro, setFiltro] = useState("todos"); // 'todos' | 'pendientes' | 'vencidos' | 'pagados'
+
+  const hoy = todayISO();
+
+  const conEstado = useMemo(() => {
+    return proveedores.map((p) => {
+      const vencido = !p.pagado && p.fechaVencimiento < hoy;
+      const porVencer = !p.pagado && !vencido && p.fechaVencimiento <= addDays(hoy, 5);
+      return { ...p, vencido, porVencer };
+    }).sort((a, b) => a.fechaVencimiento.localeCompare(b.fechaVencimiento));
+  }, [proveedores, hoy]);
+
+  const filtrados = useMemo(() => {
+    if (filtro === "pendientes") return conEstado.filter((p) => !p.pagado);
+    if (filtro === "vencidos") return conEstado.filter((p) => p.vencido);
+    if (filtro === "pagados") return conEstado.filter((p) => p.pagado);
+    return conEstado;
+  }, [conEstado, filtro]);
+
+  const totalPendienteUSD = conEstado.filter((p) => !p.pagado).reduce((s, p) => s + (p.moneda === "BS" ? p.monto / config.tasaCambio : p.monto), 0);
+  const cantidadVencidos = conEstado.filter((p) => p.vencido).length;
+
+  function resetDraft() {
+    setDraft({ numeroFactura: "", nombre: "", fechaIngreso: todayISO(), fechaVencimiento: todayISO(), monto: "", moneda: "USD" });
+    setEditingId(null);
+  }
+
+  function startEdit(p) {
+    setEditingId(p.id);
+    setDraft({ numeroFactura: p.numeroFactura, nombre: p.nombre, fechaIngreso: p.fechaIngreso, fechaVencimiento: p.fechaVencimiento, monto: String(p.monto), moneda: p.moneda });
+    setShowAdd(true);
+  }
+
+  async function handleGuardar() {
+    if (!draft.nombre.trim() || !draft.monto) { showToast("Coloca al menos el nombre y el monto."); return; }
+    const monto = Number(draft.monto) || 0;
+    if (editingId) {
+      const next = proveedores.map((p) => (p.id === editingId ? { ...p, ...draft, monto } : p));
+      await persistProveedores(next);
+    } else {
+      const nuevo = { id: uid("prov"), ...draft, monto, pagado: false, fechaPago: null };
+      await persistProveedores([...proveedores, nuevo]);
+    }
+    showToast("Cuenta por pagar guardada.", "ok");
+    resetDraft();
+    setShowAdd(false);
+  }
+
+  async function handleMarcarPagado(id) {
+    const next = proveedores.map((p) => (p.id === id ? { ...p, pagado: true, fechaPago: todayISO() } : p));
+    await persistProveedores(next);
+  }
+  async function handleMarcarPendiente(id) {
+    const next = proveedores.map((p) => (p.id === id ? { ...p, pagado: false, fechaPago: null } : p));
+    await persistProveedores(next);
+  }
+  async function handleEliminar(id) {
+    await persistProveedores(proveedores.filter((p) => p.id !== id));
+  }
+
+  return (
+    <div className="gy-stack">
+      <div className="gy-summary-cards">
+        <div className="gy-card">
+          <span className="gy-card-label">Cuentas pendientes</span>
+          <span className="gy-card-value">{conEstado.filter((p) => !p.pagado).length}</span>
+        </div>
+        <div className="gy-card">
+          <span className="gy-card-label">Total pendiente ($)</span>
+          <span className="gy-card-value">{formatUSD(totalPendienteUSD)}</span>
+        </div>
+        <div className="gy-card">
+          <span className="gy-card-label">Vencidas</span>
+          <span className="gy-card-value" style={{ color: cantidadVencidos > 0 ? "var(--rust)" : undefined }}>{cantidadVencidos}</span>
+        </div>
+      </div>
+
+      <div className="gy-productos-toolbar">
+        <div className="gy-submode-toggle">
+          {[["todos", "Todos"], ["pendientes", "Pendientes"], ["vencidos", "Vencidos"], ["pagados", "Pagados"]].map(([id, label]) => (
+            <button type="button" key={id} className={filtro === id ? "active" : ""} onClick={() => setFiltro(id)}>{label}</button>
+          ))}
+        </div>
+        <button type="button" className="gy-btn-primary" onClick={() => { resetDraft(); setShowAdd((v) => !v); }}>
+          <PackagePlus size={16} /> Nueva cuenta por pagar
+        </button>
+      </div>
+
+      {showAdd && (
+        <div className="gy-add-panel gy-add-panel-proveedor">
+          <div className="gy-field"><label>No. de factura o nota</label><input className="gy-input" value={draft.numeroFactura} onChange={(e) => setDraft((d) => ({ ...d, numeroFactura: e.target.value }))} /></div>
+          <div className="gy-field"><label>Nombre del proveedor</label><input className="gy-input" value={draft.nombre} onChange={(e) => setDraft((d) => ({ ...d, nombre: e.target.value }))} /></div>
+          <div className="gy-field"><label>Fecha de ingreso</label><input type="date" className="gy-input" value={draft.fechaIngreso} onChange={(e) => setDraft((d) => ({ ...d, fechaIngreso: e.target.value }))} /></div>
+          <div className="gy-field"><label>Fecha de vencimiento</label><input type="date" className="gy-input" value={draft.fechaVencimiento} onChange={(e) => setDraft((d) => ({ ...d, fechaVencimiento: e.target.value }))} /></div>
+          <div className="gy-field">
+            <label>Monto</label>
+            <div className="gy-monto-moneda-row">
+              <input type="number" step="0.01" className="gy-input" value={draft.monto} onChange={(e) => setDraft((d) => ({ ...d, monto: e.target.value }))} />
+              <select className="gy-input" value={draft.moneda} onChange={(e) => setDraft((d) => ({ ...d, moneda: e.target.value }))}>
+                <option value="USD">$</option>
+                <option value="BS">Bs</option>
+              </select>
+            </div>
+          </div>
+          <div className="gy-add-actions">
+            <button type="button" className="gy-btn-primary" onClick={handleGuardar}><Check size={15} /> Guardar</button>
+            <button type="button" className="gy-btn-ghost" onClick={() => { resetDraft(); setShowAdd(false); }}><X size={15} /> Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      <div className="gy-list">
+        {filtrados.length === 0 && <p className="gy-empty-state">No hay cuentas por pagar en esta vista.</p>}
+        {filtrados.map((p) => (
+          <div className={`gy-proveedor-row ${p.vencido ? "vencido" : ""} ${p.pagado ? "pagado" : ""}`} key={p.id}>
+            <div className="gy-proveedor-main">
+              <span className="gy-proveedor-nombre">{p.nombre}</span>
+              <span className="gy-proveedor-detalle">
+                {p.numeroFactura ? `Nº ${p.numeroFactura} · ` : ""}Ingresó {formatFechaLarga(p.fechaIngreso)}
+              </span>
+              <span className="gy-proveedor-detalle">
+                Vence {formatFechaLarga(p.fechaVencimiento)}
+                {p.vencido && <span className="gy-lowstock-badge" style={{ marginLeft: 6 }}>Vencida</span>}
+                {p.porVencer && <span className="gy-porvencer-badge" style={{ marginLeft: 6 }}>Por vencer</span>}
+                {p.pagado && <span className="gy-pagado-badge" style={{ marginLeft: 6 }}>Pagada {formatFechaLarga(p.fechaPago)}</span>}
+              </span>
+            </div>
+            <div className="gy-proveedor-side">
+              <span className="gy-proveedor-monto">{p.moneda === "BS" ? formatBs(p.monto) : formatUSD(p.monto)}</span>
+              <div className="gy-proveedor-actions">
+                {!p.pagado ? (
+                  <button type="button" className="gy-btn-ghost-sm" onClick={() => handleMarcarPagado(p.id)}>Marcar pagada</button>
+                ) : (
+                  <button type="button" className="gy-btn-ghost-sm" onClick={() => handleMarcarPendiente(p.id)}>Reabrir</button>
+                )}
+                <button type="button" className="gy-icon-btn" onClick={() => startEdit(p)} title="Editar"><Pencil size={14} /></button>
+                <button type="button" className="gy-icon-btn-danger" onClick={() => handleEliminar(p.id)} title="Eliminar"><Trash2 size={14} /></button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
+/* ------------------------------------------------------------------ */
+/*  Tab: Menú (editor del menú público + exportación a PDF)             */
+/* ------------------------------------------------------------------ */
+
+function MenuTab({ menu, persistMenu, config, showToast }) {
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [draftItem, setDraftItem] = useState({});
+  const [addingToSectionId, setAddingToSectionId] = useState(null);
+  const [draftNewItem, setDraftNewItem] = useState({ nombre: "", descripcion: "", precioUSD: "", promo: false, promoLabel: "" });
+  const [addingSection, setAddingSection] = useState(false);
+  const [nuevaSeccionNombre, setNuevaSeccionNombre] = useState("");
+  const [descargando, setDescargando] = useState(false);
+
+  async function handleAddSection() {
+    const nombre = nuevaSeccionNombre.trim();
+    if (!nombre) return;
+    await persistMenu({ secciones: [...menu.secciones, { id: uid("sec"), nombre, items: [] }] });
+    setNuevaSeccionNombre("");
+    setAddingSection(false);
+  }
+  async function handleDeleteSection(sectionId) {
+    await persistMenu({ secciones: menu.secciones.filter((s) => s.id !== sectionId) });
+  }
+
+  function startEditItem(item) {
+    setEditingItemId(item.id);
+    setDraftItem({ nombre: item.nombre, descripcion: item.descripcion || "", precioUSD: String(item.precioUSD), promo: !!item.promo, promoLabel: item.promoLabel || "" });
+  }
+  async function saveEditItem(sectionId, itemId) {
+    const next = {
+      secciones: menu.secciones.map((s) => s.id !== sectionId ? s : {
+        ...s,
+        items: s.items.map((i) => i.id !== itemId ? i : {
+          ...i, nombre: draftItem.nombre.trim() || i.nombre, descripcion: draftItem.descripcion.trim(),
+          precioUSD: Number(draftItem.precioUSD) || 0, promo: draftItem.promo, promoLabel: draftItem.promoLabel.trim(),
+        }),
+      }),
+    };
+    await persistMenu(next);
+    setEditingItemId(null);
+  }
+  async function deleteItem(sectionId, itemId) {
+    const next = { secciones: menu.secciones.map((s) => s.id !== sectionId ? s : { ...s, items: s.items.filter((i) => i.id !== itemId) }) };
+    await persistMenu(next);
+  }
+  async function addItem(sectionId) {
+    if (!draftNewItem.nombre.trim() || draftNewItem.precioUSD === "") return;
+    const nuevo = {
+      id: uid("mi"), nombre: draftNewItem.nombre.trim(), descripcion: draftNewItem.descripcion.trim(),
+      precioUSD: Number(draftNewItem.precioUSD) || 0, promo: draftNewItem.promo, promoLabel: draftNewItem.promoLabel.trim(),
+    };
+    const next = { secciones: menu.secciones.map((s) => s.id !== sectionId ? s : { ...s, items: [...s.items, nuevo] }) };
+    await persistMenu(next);
+    setDraftNewItem({ nombre: "", descripcion: "", precioUSD: "", promo: false, promoLabel: "" });
+    setAddingToSectionId(null);
+  }
+
+  async function handleDescargarPDF() {
+    setDescargando(true);
+    try {
+      const blob = await pdf(<MenuPDFDocument menu={menu} config={config} />).toBlob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `menu-${(config.nombreComercio || "menu").replace(/\s+/g, "-").toLowerCase()}-${todayISO()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      showToast("PDF del menú descargado.", "ok");
+    } catch (e) {
+      showToast("No se pudo generar el PDF. Intenta de nuevo.");
+    } finally {
+      setDescargando(false);
+    }
+  }
+
+  return (
+    <div className="gy-stack">
+      <div className="gy-productos-toolbar">
+        <p className="gy-panel-help" style={{ margin: 0, flex: 1, minWidth: 220 }}>
+          Este menú se descarga siempre con los precios actuales, en $ y en Bs según la tasa vigente.
+        </p>
+        <button type="button" className="gy-btn-primary" onClick={handleDescargarPDF} disabled={descargando}>
+          <FileDown size={16} /> {descargando ? "Generando…" : "Descargar PDF"}
+        </button>
+      </div>
+
+      {menu.secciones.map((sec) => (
+        <div className="gy-panel gy-menu-section" key={sec.id}>
+          <div className="gy-menu-section-head">
+            <h3 className="gy-category-title" style={{ margin: 0 }}>{sec.nombre}</h3>
+            <button type="button" className="gy-icon-btn-danger" onClick={() => handleDeleteSection(sec.id)} title="Eliminar sección"><Trash2 size={14} /></button>
+          </div>
+
+          <div className="gy-menu-items">
+            {sec.items.length === 0 && <p className="gy-empty-state">Esta sección todavía no tiene productos.</p>}
+            {sec.items.map((item) => (
+              <div className="gy-menu-item-row" key={item.id}>
+                {editingItemId === item.id ? (
+                  <div className="gy-menu-item-edit">
+                    <input className="gy-input gy-input-sm" value={draftItem.nombre} onChange={(e) => setDraftItem((d) => ({ ...d, nombre: e.target.value }))} placeholder="Nombre" />
+                    <input className="gy-input gy-input-sm" value={draftItem.descripcion} onChange={(e) => setDraftItem((d) => ({ ...d, descripcion: e.target.value }))} placeholder="Descripción (opcional)" />
+                    <input className="gy-input gy-input-sm gy-input-price" type="number" step="0.01" value={draftItem.precioUSD} onChange={(e) => setDraftItem((d) => ({ ...d, precioUSD: e.target.value }))} placeholder="$" />
+                    <label className="gy-promo-check"><input type="checkbox" checked={draftItem.promo} onChange={(e) => setDraftItem((d) => ({ ...d, promo: e.target.checked }))} /> Promo</label>
+                    {draftItem.promo && <input className="gy-input gy-input-sm" value={draftItem.promoLabel} onChange={(e) => setDraftItem((d) => ({ ...d, promoLabel: e.target.value }))} placeholder="Etiqueta de promo" />}
+                    <button type="button" className="gy-icon-btn-ok" onClick={() => saveEditItem(sec.id, item.id)}><Check size={14} /></button>
+                    <button type="button" className="gy-icon-btn" onClick={() => setEditingItemId(null)}><X size={14} /></button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="gy-menu-item-info">
+                      <span className="gy-menu-item-name">
+                        {item.nombre} {item.promo && <span className="gy-promo-tag">{item.promoLabel || "Promo"}</span>}
+                      </span>
+                      {item.descripcion && <span className="gy-menu-item-desc">{item.descripcion}</span>}
+                    </div>
+                    <span className="gy-menu-item-price">{formatUSD(item.precioUSD)} · {formatBs(item.precioUSD * config.tasaCambio)}</span>
+                    <button type="button" className="gy-icon-btn" onClick={() => startEditItem(item)} title="Editar"><Pencil size={14} /></button>
+                    <button type="button" className="gy-icon-btn-danger" onClick={() => deleteItem(sec.id, item.id)} title="Eliminar"><Trash2 size={14} /></button>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {addingToSectionId === sec.id ? (
+            <div className="gy-add-panel">
+              <div className="gy-field"><label>Nombre</label><input className="gy-input" value={draftNewItem.nombre} onChange={(e) => setDraftNewItem((d) => ({ ...d, nombre: e.target.value }))} /></div>
+              <div className="gy-field"><label>Descripción (opcional)</label><input className="gy-input" value={draftNewItem.descripcion} onChange={(e) => setDraftNewItem((d) => ({ ...d, descripcion: e.target.value }))} /></div>
+              <div className="gy-field"><label>Precio $</label><input className="gy-input" type="number" step="0.01" value={draftNewItem.precioUSD} onChange={(e) => setDraftNewItem((d) => ({ ...d, precioUSD: e.target.value }))} /></div>
+              <label className="gy-promo-check" style={{ gridColumn: "1 / -1" }}>
+                <input type="checkbox" checked={draftNewItem.promo} onChange={(e) => setDraftNewItem((d) => ({ ...d, promo: e.target.checked }))} /> Es una promoción
+              </label>
+              {draftNewItem.promo && (
+                <div className="gy-field" style={{ gridColumn: "1 / -1" }}>
+                  <label>Etiqueta de la promo</label>
+                  <input className="gy-input" value={draftNewItem.promoLabel} onChange={(e) => setDraftNewItem((d) => ({ ...d, promoLabel: e.target.value }))} placeholder="Ej: Promo estudiantil" />
+                </div>
+              )}
+              <div className="gy-add-actions">
+                <button type="button" className="gy-btn-primary" onClick={() => addItem(sec.id)}><Check size={15} /> Agregar</button>
+                <button type="button" className="gy-btn-ghost" onClick={() => setAddingToSectionId(null)}><X size={15} /> Cancelar</button>
+              </div>
+            </div>
+          ) : (
+            <button type="button" className="gy-btn-ghost" onClick={() => setAddingToSectionId(sec.id)}>
+              <PackagePlus size={15} /> Agregar producto a {sec.nombre}
+            </button>
+          )}
+        </div>
+      ))}
+
+      {addingSection ? (
+        <div className="gy-add-panel gy-add-panel-mesa">
+          <div className="gy-field" style={{ marginBottom: 0 }}>
+            <label>Nombre de la nueva sección</label>
+            <input className="gy-input" value={nuevaSeccionNombre} onChange={(e) => setNuevaSeccionNombre(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") handleAddSection(); }} autoFocus />
+          </div>
+          <button type="button" className="gy-btn-primary" onClick={handleAddSection}><Check size={15} /> Crear</button>
+        </div>
+      ) : (
+        <button type="button" className="gy-btn-ghost" onClick={() => setAddingSection(true)}><PackagePlus size={16} /> Nueva sección</button>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Documento PDF del menú (usa el color y el logo de la marca)         */
+/* ------------------------------------------------------------------ */
+
+function buildPdfStyles(colorPrincipal) {
+  return StyleSheet.create({
+    page: { backgroundColor: "#F8F4F1", padding: 36, fontFamily: "Helvetica", color: "#2A2420" },
+    headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
+    title: { fontSize: 40, fontFamily: "Helvetica-Bold", color: colorPrincipal },
+    logo: { width: 70, height: 70, borderRadius: 35 },
+    hr: { borderBottomWidth: 2, borderBottomColor: colorPrincipal, marginBottom: 18 },
+    columns: { flexDirection: "row", gap: 24 },
+    column: { flex: 1 },
+    sectionTitle: { fontSize: 13, fontFamily: "Helvetica-Bold", color: colorPrincipal, marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 },
+    sectionLine: { borderBottomWidth: 1, borderBottomColor: colorPrincipal, marginBottom: 8 },
+    itemRow: { marginBottom: 9 },
+    itemTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
+    itemName: { fontSize: 10.5, fontFamily: "Helvetica-Bold", color: "#2A2420", flex: 1, paddingRight: 8 },
+    itemPrice: { fontSize: 10.5, fontFamily: "Helvetica-Bold", color: colorPrincipal, textAlign: "right" },
+    itemPriceBs: { fontSize: 8, color: "#6F6659", textAlign: "right" },
+    itemDesc: { fontSize: 8.5, color: "#6F6659", marginTop: 1, lineHeight: 1.3 },
+    promoBox: { backgroundColor: colorPrincipal, borderRadius: 10, padding: 10, marginBottom: 10 },
+    promoLabel: { fontSize: 8, color: "#CFE0D3", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 },
+    promoRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    promoName: { fontSize: 10.5, fontFamily: "Helvetica-Bold", color: "#FFFFFF", flex: 1 },
+    promoPrice: { fontSize: 12, fontFamily: "Helvetica-Bold", color: "#FFFFFF" },
+    footer: { marginTop: 20, textAlign: "center" },
+    footerTitle: { fontSize: 16, fontFamily: "Helvetica-Bold", color: colorPrincipal, marginBottom: 2 },
+    footerTag: { fontSize: 9, color: "#6F6659" },
+    pageFoot: { position: "absolute", bottom: 20, left: 36, right: 36, textAlign: "center", fontSize: 7.5, color: "#A79C8A" },
+  });
+}
+
+function PdfMenuItem({ item, styles, config }) {
+  if (item.promo) {
+    return (
+      <View style={styles.promoBox}>
+        <Text style={styles.promoLabel}>{item.promoLabel || "Promoción"}</Text>
+        <View style={styles.promoRow}>
+          <Text style={styles.promoName}>{item.nombre}</Text>
+          <Text style={styles.promoPrice}>${item.precioUSD.toFixed(2)}</Text>
+        </View>
+      </View>
+    );
+  }
+  return (
+    <View style={styles.itemRow}>
+      <View style={styles.itemTopRow}>
+        <Text style={styles.itemName}>{item.nombre}</Text>
+        <View>
+          <Text style={styles.itemPrice}>${item.precioUSD.toFixed(2)}</Text>
+          <Text style={styles.itemPriceBs}>{Math.round(item.precioUSD * config.tasaCambio).toLocaleString("es-VE")} Bs</Text>
+        </View>
+      </View>
+      {item.descripcion ? <Text style={styles.itemDesc}>{item.descripcion}</Text> : null}
+    </View>
+  );
+}
+
+function MenuPDFDocument({ menu, config }) {
+  const styles = buildPdfStyles(config.colorPrincipal || "#0B4F30");
+  const secciones = menu.secciones || [];
+  const pares = [];
+  for (let i = 0; i < secciones.length; i += 2) pares.push([secciones[i], secciones[i + 1]]);
+
+  return (
+    <Document>
+      <Page size="A4" style={styles.page}>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>MENÚ</Text>
+          {config.logoTipo === "imagen" && config.logoImagen ? (
+            <PDFImage src={config.logoImagen} style={styles.logo} />
+          ) : null}
+        </View>
+        <View style={styles.hr} />
+
+        {pares.map(([izq, der], idx) => (
+          <View style={styles.columns} key={idx}>
+            <View style={styles.column}>
+              {izq && (
+                <>
+                  <Text style={styles.sectionTitle}>{izq.nombre}</Text>
+                  <View style={styles.sectionLine} />
+                  {izq.items.map((item) => <PdfMenuItem key={item.id} item={item} styles={styles} config={config} />)}
+                </>
+              )}
+            </View>
+            <View style={styles.column}>
+              {der && (
+                <>
+                  <Text style={styles.sectionTitle}>{der.nombre}</Text>
+                  <View style={styles.sectionLine} />
+                  {der.items.map((item) => <PdfMenuItem key={item.id} item={item} styles={styles} config={config} />)}
+                </>
+              )}
+            </View>
+          </View>
+        ))}
+
+        <View style={styles.footer}>
+          <Text style={styles.footerTitle}>¡Buen provecho!</Text>
+          <Text style={styles.footerTag}>{config.nombreComercio} · {config.tagline}</Text>
+        </View>
+
+        <Text style={styles.pageFoot} fixed>
+          Precios sujetos a cambio según la tasa de cambio vigente · {config.nombreComercio}
+        </Text>
+      </Page>
+    </Document>
   );
 }
 
@@ -2490,6 +3167,7 @@ function StyleBlock() {
         border-bottom: 1px solid var(--line);
       }
       .gy-tab {
+        position: relative;
         display: flex; align-items: center; gap: 6px; border: none; background: transparent;
         color: var(--muted); padding: 9px 13px; border-radius: 9px; font-size: 13px; font-weight: 600;
         cursor: pointer; font-family: 'Inter', sans-serif;
@@ -2651,9 +3329,36 @@ function StyleBlock() {
 
       .gy-method-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap: 10px; }
       .gy-method-card { background: var(--parchment); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 3px; }
+      .gy-method-card-btn { border: 2px solid transparent; cursor: pointer; text-align: left; font-family: 'Inter', sans-serif; width: 100%; }
+      .gy-method-card-btn:hover { border-color: var(--line); }
+      .gy-method-card-btn.active { border-color: var(--caramel); background: #E8F0EA; }
       .gy-method-head { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: var(--ink); }
       .gy-method-count { font-size: 11px; color: var(--muted); }
       .gy-method-amount { font-family: 'IBM Plex Mono', monospace; font-size: 14px; color: var(--caramel-dark); font-weight: 600; }
+      .gy-filtro-chip {
+        display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+        background: #E8F0EA; color: var(--forest-dark); border: 1px solid #B9D4C1; border-radius: 9px;
+        padding: 8px 12px; font-size: 12px; font-weight: 600;
+      }
+      .gy-filtro-chip button { display: flex; align-items: center; gap: 4px; border: none; background: transparent; color: var(--forest-dark); font-weight: 700; cursor: pointer; font-size: 12px; }
+
+      .gy-enviar-mesa-form { display: flex; gap: 6px; margin-bottom: 10px; }
+      .gy-enviar-mesa-form .gy-input { flex: 1; }
+
+      .gy-historial-top { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; margin-bottom: 4px; }
+      .gy-ranking-box { flex: 1; min-width: 260px; }
+      .gy-ranking-title { display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 6px; }
+      .gy-ranking-strip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+      .gy-ranking-chip {
+        display: flex; align-items: center; gap: 6px; background: var(--paper); border: 1px solid var(--line);
+        border-radius: 999px; padding: 6px 12px; white-space: nowrap; flex-shrink: 0;
+      }
+      .gy-ranking-pos {
+        width: 18px; height: 18px; border-radius: 50%; background: var(--caramel); color: white;
+        font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+      }
+      .gy-ranking-name { font-size: 12px; color: var(--ink); font-weight: 600; }
+      .gy-ranking-qty { font-size: 11px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; }
 
       .gy-list { display: flex; flex-direction: column; gap: 8px; }
       .gy-sale-row {
@@ -2688,6 +3393,38 @@ function StyleBlock() {
       .gy-add-actions { grid-column: 1 / -1; display: flex; gap: 8px; }
       @media (max-width: 620px) { .gy-add-panel { grid-template-columns: 1fr; } }
       .gy-add-panel-mesa { grid-template-columns: 2fr auto; align-items: end; }
+      .gy-add-panel-proveedor { grid-template-columns: repeat(2, 1fr); }
+      @media (max-width: 620px) { .gy-add-panel-proveedor { grid-template-columns: 1fr; } }
+      .gy-monto-moneda-row { display: flex; gap: 6px; }
+      .gy-monto-moneda-row input { flex: 1; }
+      .gy-monto-moneda-row select { width: 70px; }
+
+      .gy-proveedor-row {
+        display: flex; align-items: center; gap: 12px; background: var(--paper); border: 1px solid var(--line);
+        border-radius: 10px; padding: 11px 13px; flex-wrap: wrap;
+      }
+      .gy-proveedor-row.vencido { border-color: #E4B9AF; background: #FDF6F4; }
+      .gy-proveedor-row.pagado { opacity: 0.6; }
+      .gy-proveedor-main { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 220px; }
+      .gy-proveedor-nombre { font-weight: 700; font-size: 13.5px; color: var(--ink); }
+      .gy-proveedor-detalle { font-size: 11.5px; color: var(--muted); }
+      .gy-proveedor-side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+      .gy-proveedor-monto { font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 14px; color: var(--caramel-dark); }
+      .gy-proveedor-actions { display: flex; align-items: center; gap: 4px; }
+      .gy-porvencer-badge { background: #FDF3E0; color: #8A5A1E; font-size: 10.5px; font-weight: 700; padding: 3px 7px; border-radius: 999px; }
+      .gy-pagado-badge { background: #E8F0EA; color: var(--forest-dark); font-size: 10.5px; font-weight: 700; padding: 3px 7px; border-radius: 999px; }
+
+      .gy-menu-section { margin-bottom: 4px; }
+      .gy-menu-section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+      .gy-menu-items { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+      .gy-menu-item-row { display: flex; align-items: center; gap: 10px; background: var(--parchment); border-radius: 9px; padding: 9px 11px; }
+      .gy-menu-item-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+      .gy-menu-item-name { font-size: 13px; font-weight: 600; color: var(--ink); }
+      .gy-menu-item-desc { font-size: 11px; color: var(--muted); }
+      .gy-menu-item-price { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--caramel-dark); font-weight: 600; white-space: nowrap; }
+      .gy-menu-item-edit { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; width: 100%; }
+      .gy-promo-check { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
+      .gy-promo-tag { background: var(--caramel); color: white; font-size: 9.5px; font-weight: 700; padding: 2px 6px; border-radius: 999px; margin-left: 6px; text-transform: uppercase; letter-spacing: 0.03em; }
 
       .gy-category-block { margin-top: 4px; }
       .gy-category-toggle {
