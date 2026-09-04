@@ -562,6 +562,7 @@ export default function App() {
             products={products}
             config={config}
             showToast={showToast}
+            displayCurrency={displayCurrency}
           />
         )}
         {tab === "proveedores" && (
@@ -2384,7 +2385,7 @@ function ProveedoresTab({ proveedores, persistProveedores, config, showToast }) 
 /*  Tab: Menú (editor del menú público + exportación a PDF)             */
 /* ------------------------------------------------------------------ */
 
-function MenuTab({ menu, persistMenu, config, showToast }) {
+function MenuTab({ menu, persistMenu, config, showToast, displayCurrency }) {
   const [editingItemId, setEditingItemId] = useState(null);
   const [draftItem, setDraftItem] = useState({});
   const [addingToSectionId, setAddingToSectionId] = useState(null);
@@ -2440,7 +2441,7 @@ function MenuTab({ menu, persistMenu, config, showToast }) {
   async function handleDescargarPDF() {
     setDescargando(true);
     try {
-      const blob = await pdf(<MenuPDFDocument menu={menu} config={config} />).toBlob();
+      const blob = await pdf(<MenuPDFDocument menu={menu} config={config} displayCurrency={displayCurrency} />).toBlob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -2461,7 +2462,9 @@ function MenuTab({ menu, persistMenu, config, showToast }) {
     <div className="gy-stack">
       <div className="gy-productos-toolbar">
         <p className="gy-panel-help" style={{ margin: 0, flex: 1, minWidth: 220 }}>
-          Este menú se descarga siempre con los precios actuales, en $ y en Bs según la tasa vigente.
+          El PDF se descarga en una sola moneda: la que tengas elegida arriba con el botón
+          <span className="gy-menu-currency-badge">{displayCurrency === "USD" ? " $ " : " Bs "}</span>
+          del encabezado. Cambia esa moneda si quieres el otro PDF.
         </p>
         <button type="button" className="gy-btn-primary" onClick={handleDescargarPDF} disabled={descargando}>
           <FileDown size={16} /> {descargando ? "Generando…" : "Descargar PDF"}
@@ -2497,7 +2500,9 @@ function MenuTab({ menu, persistMenu, config, showToast }) {
                       </span>
                       {item.descripcion && <span className="gy-menu-item-desc">{item.descripcion}</span>}
                     </div>
-                    <span className="gy-menu-item-price">{formatUSD(item.precioUSD)} · {formatBs(item.precioUSD * config.tasaCambio)}</span>
+                    <span className="gy-menu-item-price">
+                      {displayCurrency === "USD" ? formatUSD(item.precioUSD) : formatBs(item.precioUSD * config.tasaCambio)}
+                    </span>
                     <button type="button" className="gy-icon-btn" onClick={() => startEditItem(item)} title="Editar"><Pencil size={14} /></button>
                     <button type="button" className="gy-icon-btn-danger" onClick={() => deleteItem(sec.id, item.id)} title="Eliminar"><Trash2 size={14} /></button>
                   </>
@@ -2554,41 +2559,47 @@ function MenuTab({ menu, persistMenu, config, showToast }) {
 
 function buildPdfStyles(colorPrincipal) {
   return StyleSheet.create({
-    page: { backgroundColor: "#F8F4F1", padding: 36, fontFamily: "Helvetica", color: "#2A2420" },
-    headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
-    title: { fontSize: 40, fontFamily: "Helvetica-Bold", color: colorPrincipal },
-    logo: { width: 70, height: 70, borderRadius: 35 },
-    hr: { borderBottomWidth: 2, borderBottomColor: colorPrincipal, marginBottom: 18 },
-    columns: { flexDirection: "row", gap: 24 },
-    column: { flex: 1 },
-    sectionTitle: { fontSize: 13, fontFamily: "Helvetica-Bold", color: colorPrincipal, marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 },
-    sectionLine: { borderBottomWidth: 1, borderBottomColor: colorPrincipal, marginBottom: 8 },
-    itemRow: { marginBottom: 9 },
+    page: { backgroundColor: "#F8F4F1", padding: 34, fontFamily: "Helvetica", color: "#2A2420" },
+    headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
+    title: { fontSize: 36, fontFamily: "Helvetica-Bold", color: colorPrincipal },
+    logo: { width: 56, height: 56, borderRadius: 28 },
+    hr: { borderBottomWidth: 2, borderBottomColor: colorPrincipal, marginTop: 8, marginBottom: 18 },
+    columns: { flexDirection: "row", gap: 16, alignItems: "flex-start" },
+    column: { flex: 1, gap: 14 },
+    card: { backgroundColor: "#FFFFFF", borderRadius: 12, borderWidth: 1, borderColor: "#E1DAC9", padding: 14 },
+    sectionTitle: { fontSize: 12.5, fontFamily: "Helvetica-Bold", color: colorPrincipal, marginBottom: 3, textTransform: "uppercase", letterSpacing: 1 },
+    sectionLine: { borderBottomWidth: 1, borderBottomColor: "#E1DAC9", marginBottom: 9 },
+    itemRow: { marginBottom: 8 },
     itemTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-    itemName: { fontSize: 10.5, fontFamily: "Helvetica-Bold", color: "#2A2420", flex: 1, paddingRight: 8 },
-    itemPrice: { fontSize: 10.5, fontFamily: "Helvetica-Bold", color: colorPrincipal, textAlign: "right" },
-    itemPriceBs: { fontSize: 8, color: "#6F6659", textAlign: "right" },
-    itemDesc: { fontSize: 8.5, color: "#6F6659", marginTop: 1, lineHeight: 1.3 },
-    promoBox: { backgroundColor: colorPrincipal, borderRadius: 10, padding: 10, marginBottom: 10 },
-    promoLabel: { fontSize: 8, color: "#CFE0D3", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 },
+    itemName: { fontSize: 10, fontFamily: "Helvetica-Bold", color: "#2A2420", flex: 1, paddingRight: 8 },
+    itemPrice: { fontSize: 10, fontFamily: "Helvetica-Bold", color: colorPrincipal },
+    itemDesc: { fontSize: 8, color: "#6F6659", marginTop: 1, lineHeight: 1.3 },
+    promoBox: { backgroundColor: colorPrincipal, borderRadius: 10, padding: 10, marginBottom: 8 },
+    promoLabel: { fontSize: 7.5, color: "#CFE0D3", textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 },
     promoRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-    promoName: { fontSize: 10.5, fontFamily: "Helvetica-Bold", color: "#FFFFFF", flex: 1 },
-    promoPrice: { fontSize: 12, fontFamily: "Helvetica-Bold", color: "#FFFFFF" },
-    footer: { marginTop: 20, textAlign: "center" },
-    footerTitle: { fontSize: 16, fontFamily: "Helvetica-Bold", color: colorPrincipal, marginBottom: 2 },
-    footerTag: { fontSize: 9, color: "#6F6659" },
-    pageFoot: { position: "absolute", bottom: 20, left: 36, right: 36, textAlign: "center", fontSize: 7.5, color: "#A79C8A" },
+    promoName: { fontSize: 10, fontFamily: "Helvetica-Bold", color: "#FFFFFF", flex: 1, paddingRight: 8 },
+    promoPrice: { fontSize: 11.5, fontFamily: "Helvetica-Bold", color: "#FFFFFF" },
+    footer: { marginTop: 22, textAlign: "center" },
+    footerTitle: { fontSize: 15, fontFamily: "Helvetica-Bold", color: colorPrincipal, marginBottom: 2 },
+    footerTag: { fontSize: 8.5, color: "#6F6659" },
+    pageFoot: { position: "absolute", bottom: 18, left: 34, right: 34, textAlign: "center", fontSize: 7, color: "#A79C8A" },
   });
 }
 
-function PdfMenuItem({ item, styles, config }) {
+function formatPdfPrice(precioUSD, config, displayCurrency) {
+  return displayCurrency === "BS"
+    ? `${Math.round(precioUSD * config.tasaCambio).toLocaleString("es-VE")} Bs`
+    : `$${precioUSD.toFixed(2)}`;
+}
+
+function PdfMenuItem({ item, styles, config, displayCurrency }) {
   if (item.promo) {
     return (
       <View style={styles.promoBox}>
         <Text style={styles.promoLabel}>{item.promoLabel || "Promoción"}</Text>
         <View style={styles.promoRow}>
           <Text style={styles.promoName}>{item.nombre}</Text>
-          <Text style={styles.promoPrice}>${item.precioUSD.toFixed(2)}</Text>
+          <Text style={styles.promoPrice}>{formatPdfPrice(item.precioUSD, config, displayCurrency)}</Text>
         </View>
       </View>
     );
@@ -2597,17 +2608,14 @@ function PdfMenuItem({ item, styles, config }) {
     <View style={styles.itemRow}>
       <View style={styles.itemTopRow}>
         <Text style={styles.itemName}>{item.nombre}</Text>
-        <View>
-          <Text style={styles.itemPrice}>${item.precioUSD.toFixed(2)}</Text>
-          <Text style={styles.itemPriceBs}>{Math.round(item.precioUSD * config.tasaCambio).toLocaleString("es-VE")} Bs</Text>
-        </View>
+        <Text style={styles.itemPrice}>{formatPdfPrice(item.precioUSD, config, displayCurrency)}</Text>
       </View>
       {item.descripcion ? <Text style={styles.itemDesc}>{item.descripcion}</Text> : null}
     </View>
   );
 }
 
-function MenuPDFDocument({ menu, config }) {
+function MenuPDFDocument({ menu, config, displayCurrency }) {
   const styles = buildPdfStyles(config.colorPrincipal || "#0B4F30");
   const secciones = menu.secciones || [];
   const pares = [];
@@ -2628,20 +2636,20 @@ function MenuPDFDocument({ menu, config }) {
           <View style={styles.columns} key={idx}>
             <View style={styles.column}>
               {izq && (
-                <>
+                <View style={styles.card}>
                   <Text style={styles.sectionTitle}>{izq.nombre}</Text>
                   <View style={styles.sectionLine} />
-                  {izq.items.map((item) => <PdfMenuItem key={item.id} item={item} styles={styles} config={config} />)}
-                </>
+                  {izq.items.map((item) => <PdfMenuItem key={item.id} item={item} styles={styles} config={config} displayCurrency={displayCurrency} />)}
+                </View>
               )}
             </View>
             <View style={styles.column}>
               {der && (
-                <>
+                <View style={styles.card}>
                   <Text style={styles.sectionTitle}>{der.nombre}</Text>
                   <View style={styles.sectionLine} />
-                  {der.items.map((item) => <PdfMenuItem key={item.id} item={item} styles={styles} config={config} />)}
-                </>
+                  {der.items.map((item) => <PdfMenuItem key={item.id} item={item} styles={styles} config={config} displayCurrency={displayCurrency} />)}
+                </View>
               )}
             </View>
           </View>
@@ -2653,7 +2661,7 @@ function MenuPDFDocument({ menu, config }) {
         </View>
 
         <Text style={styles.pageFoot} fixed>
-          Precios sujetos a cambio según la tasa de cambio vigente · {config.nombreComercio}
+          Precios en {displayCurrency === "BS" ? "bolívares" : "dólares"} · Sujetos a cambio según la tasa vigente · {config.nombreComercio}
         </Text>
       </Page>
     </Document>
@@ -3422,6 +3430,7 @@ function StyleBlock() {
       .gy-menu-item-name { font-size: 13px; font-weight: 600; color: var(--ink); }
       .gy-menu-item-desc { font-size: 11px; color: var(--muted); }
       .gy-menu-item-price { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--caramel-dark); font-weight: 600; white-space: nowrap; }
+      .gy-menu-currency-badge { display: inline-block; background: var(--caramel); color: white; font-weight: 700; padding: 1px 7px; border-radius: 999px; font-size: 11px; }
       .gy-menu-item-edit { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; width: 100%; }
       .gy-promo-check { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
       .gy-promo-tag { background: var(--caramel); color: white; font-size: 9.5px; font-weight: 700; padding: 2px 6px; border-radius: 999px; margin-left: 6px; text-transform: uppercase; letter-spacing: 0.03em; }
