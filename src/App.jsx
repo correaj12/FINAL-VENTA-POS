@@ -2235,6 +2235,10 @@ function ProveedoresTab({ proveedores, persistProveedores, config, showToast }) 
   const [draft, setDraft] = useState({ numeroFactura: "", nombre: "", fechaIngreso: todayISO(), fechaVencimiento: todayISO(), monto: "", moneda: "USD" });
   const [editingId, setEditingId] = useState(null);
   const [filtro, setFiltro] = useState("todos"); // 'todos' | 'pendientes' | 'vencidos' | 'pagados'
+  const [pagandoId, setPagandoId] = useState(null);
+  const [metodoPago, setMetodoPago] = useState(null);
+  const [referenciaPago, setReferenciaPago] = useState("");
+  const [errorPago, setErrorPago] = useState("");
 
   const hoy = todayISO();
 
@@ -2282,12 +2286,31 @@ function ProveedoresTab({ proveedores, persistProveedores, config, showToast }) 
     setShowAdd(false);
   }
 
-  async function handleMarcarPagado(id) {
-    const next = proveedores.map((p) => (p.id === id ? { ...p, pagado: true, fechaPago: todayISO() } : p));
+  function abrirPagoModal(id) {
+    setPagandoId(id);
+    setMetodoPago(null);
+    setReferenciaPago("");
+    setErrorPago("");
+  }
+  function cerrarPagoModal() {
+    setPagandoId(null);
+    setMetodoPago(null);
+    setReferenciaPago("");
+    setErrorPago("");
+  }
+  async function confirmarPago() {
+    if (!metodoPago) { setErrorPago("Selecciona la forma de pago."); return; }
+    if (metodoPago === "pago_movil" && !referenciaPago.trim()) { setErrorPago("Coloca el número de referencia."); return; }
+    const next = proveedores.map((p) => (p.id === pagandoId ? {
+      ...p, pagado: true, fechaPago: todayISO(), formaPago: metodoPago,
+      referencia: metodoPago === "pago_movil" ? referenciaPago.trim() : "",
+    } : p));
     await persistProveedores(next);
+    showToast("Cuenta marcada como pagada.", "ok");
+    cerrarPagoModal();
   }
   async function handleMarcarPendiente(id) {
-    const next = proveedores.map((p) => (p.id === id ? { ...p, pagado: false, fechaPago: null } : p));
+    const next = proveedores.map((p) => (p.id === id ? { ...p, pagado: false, fechaPago: null, formaPago: null, referencia: "" } : p));
     await persistProveedores(next);
   }
   async function handleEliminar(id) {
@@ -2360,12 +2383,18 @@ function ProveedoresTab({ proveedores, persistProveedores, config, showToast }) 
                 {p.porVencer && <span className="gy-porvencer-badge" style={{ marginLeft: 6 }}>Por vencer</span>}
                 {p.pagado && <span className="gy-pagado-badge" style={{ marginLeft: 6 }}>Pagada {formatFechaLarga(p.fechaPago)}</span>}
               </span>
+              {p.pagado && p.formaPago && (
+                <span className="gy-proveedor-detalle gy-proveedor-pago-detalle">
+                  {React.createElement(paymentMeta(p.formaPago).icon, { size: 12 })}
+                  {paymentMeta(p.formaPago).label}{p.referencia ? ` · Ref. ${p.referencia}` : ""}
+                </span>
+              )}
             </div>
             <div className="gy-proveedor-side">
               <span className="gy-proveedor-monto">{p.moneda === "BS" ? formatBs(p.monto) : formatUSD(p.monto)}</span>
               <div className="gy-proveedor-actions">
                 {!p.pagado ? (
-                  <button type="button" className="gy-btn-ghost-sm" onClick={() => handleMarcarPagado(p.id)}>Marcar pagada</button>
+                  <button type="button" className="gy-btn-ghost-sm" onClick={() => abrirPagoModal(p.id)}>Marcar pagada</button>
                 ) : (
                   <button type="button" className="gy-btn-ghost-sm" onClick={() => handleMarcarPendiente(p.id)}>Reabrir</button>
                 )}
@@ -2376,6 +2405,48 @@ function ProveedoresTab({ proveedores, persistProveedores, config, showToast }) 
           </div>
         ))}
       </div>
+
+      {pagandoId && (
+        <div className="gy-modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) cerrarPagoModal(); }}>
+          <div className="gy-modal gy-modal-pago-proveedor">
+            <div className="gy-lock-icon"><Check size={20} /></div>
+            <h3>Registrar pago al proveedor</h3>
+            <p>Indica cómo se pagó, para llevar un respaldo digital de esta cuenta.</p>
+
+            <div className="gy-payment-grid">
+              {PAYMENT_METHODS.map((m) => {
+                const Icon = m.icon;
+                return (
+                  <button
+                    type="button"
+                    key={m.id}
+                    className={`gy-payment-btn ${metodoPago === m.id ? "active" : ""}`}
+                    onClick={() => { setMetodoPago(m.id); setErrorPago(""); }}
+                  >
+                    <Icon size={16} />
+                    <span>{m.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {metodoPago === "pago_movil" && (
+              <input
+                type="text" inputMode="numeric" className="gy-input" style={{ marginTop: 10 }}
+                placeholder="N° de referencia" value={referenciaPago}
+                onChange={(e) => { setReferenciaPago(e.target.value); setErrorPago(""); }}
+                autoFocus
+              />
+            )}
+            {errorPago && <p className="gy-error-text">{errorPago}</p>}
+
+            <div className="gy-modal-actions" style={{ marginTop: 14 }}>
+              <button type="button" className="gy-btn-ghost" onClick={cerrarPagoModal}><X size={15} /> Cancelar</button>
+              <button type="button" className="gy-btn-primary" onClick={confirmarPago}><Check size={15} /> Confirmar pago</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -3421,6 +3492,8 @@ function StyleBlock() {
       .gy-proveedor-actions { display: flex; align-items: center; gap: 4px; }
       .gy-porvencer-badge { background: #FDF3E0; color: #8A5A1E; font-size: 10.5px; font-weight: 700; padding: 3px 7px; border-radius: 999px; }
       .gy-pagado-badge { background: #E8F0EA; color: var(--forest-dark); font-size: 10.5px; font-weight: 700; padding: 3px 7px; border-radius: 999px; }
+      .gy-proveedor-pago-detalle { display: flex; align-items: center; gap: 5px; color: var(--caramel-dark); font-weight: 600; }
+      .gy-modal-pago-proveedor { max-width: 400px; }
 
       .gy-menu-section { margin-bottom: 4px; }
       .gy-menu-section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
