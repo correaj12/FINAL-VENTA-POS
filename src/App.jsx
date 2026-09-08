@@ -542,10 +542,14 @@ export default function App() {
           />
         )}
         {tab === "jornada" && (
-          <JornadaTab sales={sales} persistSales={persistSales} triggerPrint={triggerPrint} vistaOculta={vistaOculta} config={config} />
+          <OperatorLockGate config={config} title="Jornada">
+            <JornadaTab sales={sales} persistSales={persistSales} triggerPrint={triggerPrint} vistaOculta={vistaOculta} config={config} />
+          </OperatorLockGate>
         )}
         {tab === "historial" && (
-          <HistorialTab sales={sales} vistaOculta={vistaOculta} />
+          <OperatorLockGate config={config} title="Historial">
+            <HistorialTab sales={sales} vistaOculta={vistaOculta} />
+          </OperatorLockGate>
         )}
         {tab === "productos" && (
           <ProductosTab
@@ -566,20 +570,20 @@ export default function App() {
           />
         )}
         {tab === "proveedores" && (
-          <ProveedoresTab
-            proveedores={proveedores}
-            persistProveedores={persistProveedores}
-            config={config}
-            showToast={showToast}
-          />
+          <OperatorLockGate config={config} title="Proveedores">
+            <ProveedoresTab
+              proveedores={proveedores}
+              persistProveedores={persistProveedores}
+              config={config}
+              showToast={showToast}
+            />
+          </OperatorLockGate>
         )}
         {tab === "config" && (
           <ConfiguracionTab
             config={config}
             persistConfig={persistConfig}
             resetAll={resetAll}
-            products={products}
-            persistProducts={persistProducts}
             showToast={showToast}
           />
         )}
@@ -821,6 +825,52 @@ function OperatorGateModal({ open, config, title, mensaje, onCancel, onConfirm }
         </form>
         {error && <p className="gy-error-text">Clave incorrecta.</p>}
       </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Pantalla completa que exige la clave de operador para ver un tab     */
+/*  (Jornada, Historial, Proveedores). Se vuelve a pedir cada vez que    */
+/*  se entra a la pestaña, igual que la Configuración con la clave de   */
+/*  administrador.                                                      */
+/* ------------------------------------------------------------------ */
+
+function OperatorLockGate({ config, title, children }) {
+  const [unlocked, setUnlocked] = useState(false);
+  const [pin, setPin] = useState("");
+  const [error, setError] = useState(false);
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    if (pin === config.claveOperador) {
+      setUnlocked(true);
+    } else {
+      setError(true);
+    }
+  }
+
+  if (unlocked) return children;
+
+  return (
+    <div className="gy-lock-screen">
+      <div className="gy-lock-icon"><KeyRound size={22} /></div>
+      <h3>{title}</h3>
+      <p>Ingresa la clave de operador para ver esta sección.</p>
+      <form onSubmit={handleSubmit} className="gy-modal-form">
+        <input
+          type="password"
+          inputMode="numeric"
+          maxLength={4}
+          className="gy-input gy-input-pin"
+          placeholder="••••"
+          value={pin}
+          onChange={(e) => { setPin(e.target.value.replace(/\D/g, "")); setError(false); }}
+          autoFocus
+        />
+        <button type="submit" className="gy-btn-primary"><Unlock size={15} /> Entrar</button>
+      </form>
+      {error && <p className="gy-error-text">Clave incorrecta.</p>}
     </div>
   );
 }
@@ -2054,7 +2104,7 @@ function ProductosTab({ products, persistProducts, config, displayCurrency }) {
   const [editingId, setEditingId] = useState(null);
   const [draft, setDraft] = useState({});
   const [showAdd, setShowAdd] = useState(false);
-  const [newProduct, setNewProduct] = useState({ name: "", category: CATEGORIAS_BASE[0], price: "" });
+  const [newProduct, setNewProduct] = useState({ name: "", category: CATEGORIAS_BASE[0], price: "", stock: "0", alertaStock: "5", costo: "" });
   const [collapsed, setCollapsed] = useState(() => new Set());
   const [gateAction, setGateAction] = useState(null);
 
@@ -2086,6 +2136,11 @@ function ProductosTab({ products, persistProducts, config, displayCurrency }) {
     return map;
   }, [filtrados]);
 
+  const totalLowStock = useMemo(
+    () => products.filter((p) => Number(p.stock ?? 0) <= Number(p.alertaStock ?? 0)).length,
+    [products]
+  );
+
   function toUSD(value) {
     const n = Number(value) || 0;
     return displayCurrency === "USD" ? n : n / config.tasaCambio;
@@ -2096,7 +2151,10 @@ function ProductosTab({ products, persistProducts, config, displayCurrency }) {
 
   function startEdit(p) {
     setEditingId(p.id);
-    setDraft({ name: p.name, category: p.category, price: fromUSD(p.priceUSD).toFixed(2) });
+    setDraft({
+      name: p.name, category: p.category, price: fromUSD(p.priceUSD).toFixed(2),
+      stock: String(p.stock ?? 0), alertaStock: String(p.alertaStock ?? 0), costo: String(p.costo ?? 0),
+    });
   }
   function cancelEdit() { setEditingId(null); setDraft({}); }
 
@@ -2107,7 +2165,15 @@ function ProductosTab({ products, persistProducts, config, displayCurrency }) {
   async function saveEdit(id) {
     const priceUSD = toUSD(draft.price);
     pedirClave(async () => {
-      const next = products.map((p) => (p.id === id ? { ...p, name: draft.name.trim() || p.name, category: draft.category, priceUSD } : p));
+      const next = products.map((p) => (p.id === id ? {
+        ...p,
+        name: draft.name.trim() || p.name,
+        category: draft.category,
+        priceUSD,
+        stock: Number(draft.stock) || 0,
+        alertaStock: Number(draft.alertaStock) || 0,
+        costo: Number(draft.costo) || 0,
+      } : p));
       await persistProducts(next);
       cancelEdit();
     });
@@ -2123,9 +2189,12 @@ function ProductosTab({ products, persistProducts, config, displayCurrency }) {
     if (!newProduct.name.trim()) return;
     const priceUSD = toUSD(newProduct.price);
     pedirClave(async () => {
-      const next = [...products, { id: uid("prod"), name: newProduct.name.trim(), category: newProduct.category, priceUSD, stock: 0, alertaStock: 5, costo: 0 }];
+      const next = [...products, {
+        id: uid("prod"), name: newProduct.name.trim(), category: newProduct.category, priceUSD,
+        stock: Number(newProduct.stock) || 0, alertaStock: Number(newProduct.alertaStock) || 0, costo: Number(newProduct.costo) || 0,
+      }];
       await persistProducts(next);
-      setNewProduct({ name: "", category: newProduct.category, price: "" });
+      setNewProduct({ name: "", category: newProduct.category, price: "", stock: "0", alertaStock: "5", costo: "" });
       setShowAdd(false);
     });
   }
@@ -2143,13 +2212,16 @@ function ProductosTab({ products, persistProducts, config, displayCurrency }) {
             className="gy-search-input"
           />
         </div>
+        {totalLowStock > 0 && (
+          <span className="gy-lowstock-pill"><AlertTriangle size={13} /> {totalLowStock} con stock bajo</span>
+        )}
         <button type="button" className="gy-btn-primary" onClick={() => setShowAdd((v) => !v)}>
           <PackagePlus size={16} /> Agregar producto
         </button>
       </div>
 
       {showAdd && (
-        <div className="gy-add-panel">
+        <div className="gy-add-panel gy-add-panel-full">
           <div className="gy-field">
             <label>Nombre</label>
             <input className="gy-input" value={newProduct.name} onChange={(e) => setNewProduct((n) => ({ ...n, name: e.target.value }))} placeholder="Ej: Té Chai" />
@@ -2163,6 +2235,18 @@ function ProductosTab({ products, persistProducts, config, displayCurrency }) {
           <div className="gy-field">
             <label>Precio ({displayCurrency === "USD" ? "$" : "Bs"})</label>
             <input className="gy-input" type="number" step="0.01" value={newProduct.price} onChange={(e) => setNewProduct((n) => ({ ...n, price: e.target.value }))} placeholder="0.00" />
+          </div>
+          <div className="gy-field">
+            <label>Stock inicial</label>
+            <input className="gy-input" type="number" value={newProduct.stock} onChange={(e) => setNewProduct((n) => ({ ...n, stock: e.target.value }))} />
+          </div>
+          <div className="gy-field">
+            <label>Alerta de stock bajo</label>
+            <input className="gy-input" type="number" value={newProduct.alertaStock} onChange={(e) => setNewProduct((n) => ({ ...n, alertaStock: e.target.value }))} />
+          </div>
+          <div className="gy-field">
+            <label>Costo $ (opcional)</label>
+            <input className="gy-input" type="number" step="0.01" value={newProduct.costo} onChange={(e) => setNewProduct((n) => ({ ...n, costo: e.target.value }))} placeholder="0.00" />
           </div>
           <div className="gy-add-actions">
             <button type="button" className="gy-btn-primary" onClick={handleAdd}><Check size={15} /> Guardar</button>
@@ -2183,30 +2267,41 @@ function ProductosTab({ products, persistProducts, config, displayCurrency }) {
             </button>
             {!isCollapsed && (
               <div className="gy-product-list">
-                {items.map((p) => (
-                  <div className="gy-product-row" key={p.id}>
-                    {editingId === p.id ? (
-                      <>
-                        <input className="gy-input gy-input-sm" value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} />
-                        <select className="gy-input gy-input-sm" value={draft.category} onChange={(e) => setDraft((d) => ({ ...d, category: e.target.value }))}>
-                          {categorias.map((c) => <option key={c} value={c}>{c}</option>)}
-                        </select>
-                        <input className="gy-input gy-input-sm gy-input-price" type="number" step="0.01" value={draft.price} onChange={(e) => setDraft((d) => ({ ...d, price: e.target.value }))} />
-                        <button type="button" className="gy-icon-btn-ok" onClick={() => saveEdit(p.id)}><Check size={15} /></button>
-                        <button type="button" className="gy-icon-btn" onClick={cancelEdit}><X size={15} /></button>
-                      </>
-                    ) : (
-                      <>
-                        <span className="gy-product-name">{p.name}</span>
-                        <span className="gy-product-price">
-                          {displayCurrency === "USD" ? formatUSD(p.priceUSD) : formatBs(p.priceUSD * config.tasaCambio)}
-                        </span>
-                        <button type="button" className="gy-icon-btn" onClick={() => startEdit(p)} title="Editar"><Pencil size={14} /></button>
-                        <button type="button" className="gy-icon-btn-danger" onClick={() => handleDelete(p.id)} title="Eliminar"><Trash2 size={14} /></button>
-                      </>
-                    )}
-                  </div>
-                ))}
+                {items.map((p) => {
+                  const low = Number(p.stock ?? 0) <= Number(p.alertaStock ?? 0);
+                  return (
+                    <div className={`gy-product-row ${editingId === p.id ? "gy-product-row-editing" : ""}`} key={p.id}>
+                      {editingId === p.id ? (
+                        <div className="gy-product-edit-grid">
+                          <input className="gy-input gy-input-sm" value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} placeholder="Nombre" />
+                          <select className="gy-input gy-input-sm" value={draft.category} onChange={(e) => setDraft((d) => ({ ...d, category: e.target.value }))}>
+                            {categorias.map((c) => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                          <input className="gy-input gy-input-sm" type="number" step="0.01" value={draft.price} onChange={(e) => setDraft((d) => ({ ...d, price: e.target.value }))} placeholder={displayCurrency === "USD" ? "Precio $" : "Precio Bs"} />
+                          <input className="gy-input gy-input-sm" type="number" value={draft.stock} onChange={(e) => setDraft((d) => ({ ...d, stock: e.target.value }))} placeholder="Stock" />
+                          <input className="gy-input gy-input-sm" type="number" value={draft.alertaStock} onChange={(e) => setDraft((d) => ({ ...d, alertaStock: e.target.value }))} placeholder="Alerta" />
+                          <input className="gy-input gy-input-sm" type="number" step="0.01" value={draft.costo} onChange={(e) => setDraft((d) => ({ ...d, costo: e.target.value }))} placeholder="Costo $" />
+                          <div className="gy-product-edit-actions">
+                            <button type="button" className="gy-icon-btn-ok" onClick={() => saveEdit(p.id)}><Check size={15} /></button>
+                            <button type="button" className="gy-icon-btn" onClick={cancelEdit}><X size={15} /></button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="gy-product-name">{p.name}</span>
+                          <span className={`gy-product-stock ${low ? "low" : ""}`}>
+                            Stock: {p.stock ?? 0}{low && " ⚠"}
+                          </span>
+                          <span className="gy-product-price">
+                            {displayCurrency === "USD" ? formatUSD(p.priceUSD) : formatBs(p.priceUSD * config.tasaCambio)}
+                          </span>
+                          <button type="button" className="gy-icon-btn" onClick={() => startEdit(p)} title="Editar"><Pencil size={14} /></button>
+                          <button type="button" className="gy-icon-btn-danger" onClick={() => handleDelete(p.id)} title="Eliminar"><Trash2 size={14} /></button>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -2217,7 +2312,7 @@ function ProductosTab({ products, persistProducts, config, displayCurrency }) {
         open={!!gateAction}
         config={config}
         title="Clave de operador"
-        mensaje="Los cambios de precio y productos requieren la clave de operador."
+        mensaje="Los cambios de precio, stock, costo y productos requieren la clave de operador."
         onCancel={() => setGateAction(null)}
         onConfirm={() => { const fn = gateAction; setGateAction(null); fn && fn(); }}
       />
@@ -2303,7 +2398,7 @@ function ProveedoresTab({ proveedores, persistProveedores, config, showToast }) 
     if (metodoPago === "pago_movil" && !referenciaPago.trim()) { setErrorPago("Coloca el número de referencia."); return; }
     const next = proveedores.map((p) => (p.id === pagandoId ? {
       ...p, pagado: true, fechaPago: todayISO(), formaPago: metodoPago,
-      referencia: metodoPago === "pago_movil" ? referenciaPago.trim() : "",
+      referencia: referenciaPago.trim(),
     } : p));
     await persistProveedores(next);
     showToast("Cuenta marcada como pagada.", "ok");
@@ -2430,13 +2525,18 @@ function ProveedoresTab({ proveedores, persistProveedores, config, showToast }) 
               })}
             </div>
 
-            {metodoPago === "pago_movil" && (
-              <input
-                type="text" inputMode="numeric" className="gy-input" style={{ marginTop: 10 }}
-                placeholder="N° de referencia" value={referenciaPago}
-                onChange={(e) => { setReferenciaPago(e.target.value); setErrorPago(""); }}
-                autoFocus
-              />
+            {metodoPago && (
+              <div className="gy-field" style={{ marginTop: 10, marginBottom: 0 }}>
+                <label>
+                  Número de referencia{metodoPago === "pago_movil" ? "" : " (opcional)"}
+                </label>
+                <input
+                  type="text" inputMode="numeric" className="gy-input"
+                  placeholder="Ej: 004521 o número de confirmación" value={referenciaPago}
+                  onChange={(e) => { setReferenciaPago(e.target.value); setErrorPago(""); }}
+                  autoFocus
+                />
+              </div>
             )}
             {errorPago && <p className="gy-error-text">{errorPago}</p>}
 
@@ -2744,7 +2844,7 @@ function MenuPDFDocument({ menu, config, displayCurrency }) {
 /*  Tab: Configuración (protegida con clave de administrador)           */
 /* ------------------------------------------------------------------ */
 
-function ConfiguracionTab({ config, persistConfig, resetAll, products, persistProducts, showToast }) {
+function ConfiguracionTab({ config, persistConfig, resetAll, showToast }) {
   const [unlocked, setUnlocked] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
   const [passwordError, setPasswordError] = useState(false);
@@ -2765,7 +2865,7 @@ function ConfiguracionTab({ config, persistConfig, resetAll, products, persistPr
       <div className="gy-lock-screen">
         <div className="gy-lock-icon"><Lock size={22} /></div>
         <h3>Configuración protegida</h3>
-        <p>Ingresa la clave de administrador para editar la tasa de cambio, el inventario, la marca o restablecer datos.</p>
+        <p>Ingresa la clave de administrador para editar la tasa de cambio, la marca o restablecer datos.</p>
         <form onSubmit={handleUnlock} className="gy-lock-form">
           <input
             type="password"
@@ -2787,14 +2887,12 @@ function ConfiguracionTab({ config, persistConfig, resetAll, products, persistPr
       config={config}
       persistConfig={persistConfig}
       resetAll={resetAll}
-      products={products}
-      persistProducts={persistProducts}
       showToast={showToast}
     />
   );
 }
 
-function ConfiguracionContenido({ config, persistConfig, resetAll, products, persistProducts, showToast }) {
+function ConfiguracionContenido({ config, persistConfig, resetAll, showToast }) {
   const [tasaInput, setTasaInput] = useState(String(config.tasaCambio));
   const [confirmReset, setConfirmReset] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -2833,14 +2931,12 @@ function ConfiguracionContenido({ config, persistConfig, resetAll, products, per
         </div>
       </div>
 
-      <ControlInventario products={products} persistProducts={persistProducts} showToast={showToast} config={config} />
-
       <CambioClaves config={config} persistConfig={persistConfig} showToast={showToast} />
 
       <div className="gy-panel gy-danger-zone">
         <h3 className="gy-panel-title"><AlertTriangle size={16} /> Restablecer datos</h3>
         <p className="gy-panel-help">
-          Esto borra todas las ventas, mesas abiertas, y regresa productos, inventario, tasa y marca a los valores iniciales. No se puede deshacer.
+          Esto borra todas las ventas, mesas abiertas, y regresa productos (con su inventario), tasa y marca a los valores iniciales. No se puede deshacer.
         </p>
         {confirmReset ? (
           <div className="gy-confirm-inline">
@@ -3018,145 +3114,6 @@ function CambioClaves({ config, persistConfig, showToast }) {
 /* ------------------------------------------------------------------ */
 /*  Control de Inventario (dentro de Configuración)                     */
 /* ------------------------------------------------------------------ */
-
-function ControlInventario({ products, persistProducts, showToast, config }) {
-  const [filtro, setFiltro] = useState("");
-  const [pending, setPending] = useState({}); // id -> { stock?, alertaStock?, costo? }
-  const [collapsed, setCollapsed] = useState(() => new Set());
-
-  function toggleCollapsed(cat) {
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      if (next.has(cat)) next.delete(cat); else next.add(cat);
-      return next;
-    });
-  }
-
-  const filtrados = useMemo(() => {
-    const q = filtro.trim().toLowerCase();
-    return q ? products.filter((p) => p.name.toLowerCase().includes(q)) : products;
-  }, [products, filtro]);
-
-  const agrupados = useMemo(() => {
-    const map = {};
-    filtrados.forEach((p) => {
-      if (!map[p.category]) map[p.category] = [];
-      map[p.category].push(p);
-    });
-    return map;
-  }, [filtrados]);
-
-  function getValue(p, field) {
-    const v = pending[p.id]?.[field];
-    return v !== undefined ? v : (p[field] ?? 0);
-  }
-  function setValue(id, field, value) {
-    setPending((prev) => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
-  }
-
-  const totalLowStock = filtrados.filter((p) => Number(getValue(p, "stock")) <= Number(getValue(p, "alertaStock"))).length;
-  const hasPending = Object.keys(pending).length > 0;
-
-  async function handleGuardarInventario() {
-    const next = products.map((p) => {
-      const change = pending[p.id];
-      if (!change) return p;
-      return {
-        ...p,
-        stock: change.stock !== undefined ? Number(change.stock) || 0 : p.stock,
-        alertaStock: change.alertaStock !== undefined ? Number(change.alertaStock) || 0 : p.alertaStock,
-        costo: change.costo !== undefined ? Number(change.costo) || 0 : (p.costo ?? 0),
-      };
-    });
-    await persistProducts(next);
-    setPending({});
-    showToast("Inventario actualizado.", "ok");
-  }
-
-  return (
-    <div className="gy-panel">
-      <h3 className="gy-panel-title"><Boxes size={16} /> Control de inventario</h3>
-      <p className="gy-panel-help">
-        Define la cantidad disponible, el número de alerta de stock bajo y el costo de cada producto (el costo puede
-        quedar en 0 si todavía no lo tienes). Al registrar una venta, el stock se descuenta automáticamente.
-      </p>
-
-      <div className="gy-inventory-toolbar">
-        <div className="gy-search-box gy-search-box-flat">
-          <Search size={16} />
-          <input
-            className="gy-search-input"
-            placeholder="Buscar producto…"
-            value={filtro}
-            onChange={(e) => setFiltro(e.target.value)}
-          />
-        </div>
-        {totalLowStock > 0 && (
-          <span className="gy-lowstock-pill"><AlertTriangle size={13} /> {totalLowStock} con stock bajo</span>
-        )}
-        {hasPending && (
-          <button type="button" className="gy-btn-primary" onClick={handleGuardarInventario}>
-            <Check size={15} /> Guardar cambios
-          </button>
-        )}
-      </div>
-
-      <div className="gy-inventory-list">
-        {Object.entries(agrupados).map(([cat, items]) => {
-          const isCollapsed = collapsed.has(cat);
-          return (
-            <div key={cat} className="gy-category-block">
-              <button type="button" className="gy-category-toggle" onClick={() => toggleCollapsed(cat)}>
-                {isCollapsed ? <ChevronRight size={15} /> : <ChevronDown size={15} />}
-                <h4 className="gy-category-title-sm">{cat} <span className="gy-category-count">({items.length})</span></h4>
-              </button>
-              {!isCollapsed && items.map((p) => {
-                const stockVal = getValue(p, "stock");
-                const alertaVal = getValue(p, "alertaStock");
-                const costoVal = getValue(p, "costo");
-                const low = Number(stockVal) <= Number(alertaVal);
-                return (
-                  <div className="gy-inventory-row" key={p.id}>
-                    <span className="gy-inventory-name">{p.name}</span>
-                    <label className="gy-inventory-field">
-                      <span>Stock</span>
-                      <input
-                        type="number"
-                        className="gy-input gy-input-sm"
-                        value={stockVal}
-                        onChange={(e) => setValue(p.id, "stock", e.target.value)}
-                      />
-                    </label>
-                    <label className="gy-inventory-field">
-                      <span>Alerta</span>
-                      <input
-                        type="number"
-                        className="gy-input gy-input-sm"
-                        value={alertaVal}
-                        onChange={(e) => setValue(p.id, "alertaStock", e.target.value)}
-                      />
-                    </label>
-                    <label className="gy-inventory-field">
-                      <span>Costo $</span>
-                      <input
-                        type="number"
-                        step="0.01"
-                        className="gy-input gy-input-sm"
-                        value={costoVal}
-                        onChange={(e) => setValue(p.id, "costo", e.target.value)}
-                      />
-                    </label>
-                    {low && <span className="gy-lowstock-badge">Stock bajo</span>}
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 
 /* ------------------------------------------------------------------ */
