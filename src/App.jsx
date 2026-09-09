@@ -3475,8 +3475,20 @@ function StyleBlock() {
       .gy-category-count { font-family: 'Inter', sans-serif; font-size: 11.5px; color: var(--muted); font-weight: 500; }
       .gy-product-list { display: flex; flex-direction: column; gap: 6px; }
       .gy-product-row { display: flex; align-items: center; gap: 10px; background: var(--paper); border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px; }
+      .gy-product-row-editing { background: var(--parchment); align-items: flex-start; }
       .gy-product-name { flex: 1; font-size: 13.5px; }
       .gy-product-price { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--caramel-dark); font-weight: 600; }
+      .gy-product-stock { font-size: 11.5px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; white-space: nowrap; }
+      .gy-product-stock.low { color: var(--rust); font-weight: 700; }
+      .gy-add-panel-full { grid-template-columns: repeat(3, 1fr); }
+      @media (max-width: 720px) { .gy-add-panel-full { grid-template-columns: 1fr 1fr; } }
+      @media (max-width: 460px) { .gy-add-panel-full { grid-template-columns: 1fr; } }
+      .gy-product-edit-grid {
+        display: grid; grid-template-columns: 1.6fr 1.2fr 0.9fr 0.8fr 0.8fr 0.9fr auto;
+        gap: 6px; width: 100%; align-items: center;
+      }
+      @media (max-width: 780px) { .gy-product-edit-grid { grid-template-columns: 1fr 1fr; } }
+      .gy-product-edit-actions { display: flex; gap: 4px; }
 
       .gy-config-stack { max-width: 640px; }
       .gy-rate-editor { display: flex; align-items: center; gap: 8px; font-size: 14px; flex-wrap: wrap; }
