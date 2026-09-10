@@ -2269,36 +2269,55 @@ function ProductosTab({ products, persistProducts, config, displayCurrency }) {
               <div className="gy-product-list">
                 {items.map((p) => {
                   const low = Number(p.stock ?? 0) <= Number(p.alertaStock ?? 0);
-                  return (
-                    <div className={`gy-product-row ${editingId === p.id ? "gy-product-row-editing" : ""}`} key={p.id}>
-                      {editingId === p.id ? (
-                        <div className="gy-product-edit-grid">
-                          <input className="gy-input gy-input-sm" value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} placeholder="Nombre" />
-                          <select className="gy-input gy-input-sm" value={draft.category} onChange={(e) => setDraft((d) => ({ ...d, category: e.target.value }))}>
+
+                  if (editingId === p.id) {
+                    return (
+                      <div className="gy-add-panel gy-add-panel-full" key={p.id}>
+                        <div className="gy-field">
+                          <label>Nombre</label>
+                          <input className="gy-input" value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} />
+                        </div>
+                        <div className="gy-field">
+                          <label>Rubro</label>
+                          <select className="gy-input" value={draft.category} onChange={(e) => setDraft((d) => ({ ...d, category: e.target.value }))}>
                             {categorias.map((c) => <option key={c} value={c}>{c}</option>)}
                           </select>
-                          <input className="gy-input gy-input-sm" type="number" step="0.01" value={draft.price} onChange={(e) => setDraft((d) => ({ ...d, price: e.target.value }))} placeholder={displayCurrency === "USD" ? "Precio $" : "Precio Bs"} />
-                          <input className="gy-input gy-input-sm" type="number" value={draft.stock} onChange={(e) => setDraft((d) => ({ ...d, stock: e.target.value }))} placeholder="Stock" />
-                          <input className="gy-input gy-input-sm" type="number" value={draft.alertaStock} onChange={(e) => setDraft((d) => ({ ...d, alertaStock: e.target.value }))} placeholder="Alerta" />
-                          <input className="gy-input gy-input-sm" type="number" step="0.01" value={draft.costo} onChange={(e) => setDraft((d) => ({ ...d, costo: e.target.value }))} placeholder="Costo $" />
-                          <div className="gy-product-edit-actions">
-                            <button type="button" className="gy-icon-btn-ok" onClick={() => saveEdit(p.id)}><Check size={15} /></button>
-                            <button type="button" className="gy-icon-btn" onClick={cancelEdit}><X size={15} /></button>
-                          </div>
                         </div>
-                      ) : (
-                        <>
-                          <span className="gy-product-name">{p.name}</span>
-                          <span className={`gy-product-stock ${low ? "low" : ""}`}>
-                            Stock: {p.stock ?? 0}{low && " ⚠"}
-                          </span>
-                          <span className="gy-product-price">
-                            {displayCurrency === "USD" ? formatUSD(p.priceUSD) : formatBs(p.priceUSD * config.tasaCambio)}
-                          </span>
-                          <button type="button" className="gy-icon-btn" onClick={() => startEdit(p)} title="Editar"><Pencil size={14} /></button>
-                          <button type="button" className="gy-icon-btn-danger" onClick={() => handleDelete(p.id)} title="Eliminar"><Trash2 size={14} /></button>
-                        </>
-                      )}
+                        <div className="gy-field">
+                          <label>Precio ({displayCurrency === "USD" ? "$" : "Bs"})</label>
+                          <input className="gy-input" type="number" step="0.01" value={draft.price} onChange={(e) => setDraft((d) => ({ ...d, price: e.target.value }))} />
+                        </div>
+                        <div className="gy-field">
+                          <label>Stock</label>
+                          <input className="gy-input" type="number" value={draft.stock} onChange={(e) => setDraft((d) => ({ ...d, stock: e.target.value }))} />
+                        </div>
+                        <div className="gy-field">
+                          <label>Alerta de stock bajo</label>
+                          <input className="gy-input" type="number" value={draft.alertaStock} onChange={(e) => setDraft((d) => ({ ...d, alertaStock: e.target.value }))} />
+                        </div>
+                        <div className="gy-field">
+                          <label>Costo $ (opcional)</label>
+                          <input className="gy-input" type="number" step="0.01" value={draft.costo} onChange={(e) => setDraft((d) => ({ ...d, costo: e.target.value }))} />
+                        </div>
+                        <div className="gy-add-actions">
+                          <button type="button" className="gy-btn-primary" onClick={() => saveEdit(p.id)}><Check size={15} /> Guardar</button>
+                          <button type="button" className="gy-btn-ghost" onClick={cancelEdit}><X size={15} /> Cancelar</button>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="gy-product-row" key={p.id}>
+                      <span className="gy-product-name">{p.name}</span>
+                      <span className={`gy-product-stock ${low ? "low" : ""}`}>
+                        Stock: {p.stock ?? 0}{low && " ⚠"}
+                      </span>
+                      <span className="gy-product-price">
+                        {displayCurrency === "USD" ? formatUSD(p.priceUSD) : formatBs(p.priceUSD * config.tasaCambio)}
+                      </span>
+                      <button type="button" className="gy-icon-btn" onClick={() => startEdit(p)} title="Editar"><Pencil size={14} /></button>
+                      <button type="button" className="gy-icon-btn-danger" onClick={() => handleDelete(p.id)} title="Eliminar"><Trash2 size={14} /></button>
                     </div>
                   );
                 })}
