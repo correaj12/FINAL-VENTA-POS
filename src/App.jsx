@@ -7,7 +7,7 @@ import {
   Eye, EyeOff, KeyRound, ChevronDown, ChevronRight, ArrowLeft,
   ImagePlus, LayoutGrid, Croissant, UtensilsCrossed, ChefHat, Store,
   Pizza, IceCream2, CupSoda, Cookie, Sandwich, ShieldCheck, Split,
-  Send, BookOpen, Truck, Award, ChevronUp, FileDown, CalendarClock
+  Send, BookOpen, Truck, Award, ChevronUp, FileDown, CalendarClock, ArrowUpDown
 } from "lucide-react";
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList } from "recharts";
 import { Document, Page, View, Text, Image as PDFImage, StyleSheet, pdf } from "@react-pdf/renderer";
@@ -1754,11 +1754,12 @@ function JornadaTab({ sales, persistSales, triggerPrint, vistaOculta, config }) 
   const [fecha, setFecha] = useState(todayISO());
   const [gateSaleId, setGateSaleId] = useState(null);
   const [metodosSeleccionados, setMetodosSeleccionados] = useState(() => new Set());
+  const [masRecienteArriba, setMasRecienteArriba] = useState(true); // orden por defecto: del último al primero
 
-  const ventasDia = useMemo(
-    () => sales.filter((s) => s.fecha === fecha).sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
-    [sales, fecha]
-  );
+  const ventasDia = useMemo(() => {
+    const ordenadas = sales.filter((s) => s.fecha === fecha).sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+    return masRecienteArriba ? ordenadas.reverse() : ordenadas;
+  }, [sales, fecha, masRecienteArriba]);
 
   const totalUSD = ventasDia.reduce((s, v) => s + v.totalUSD, 0);
   const totalBs = ventasDia.reduce((s, v) => s + v.totalBs, 0);
@@ -1800,9 +1801,20 @@ function JornadaTab({ sales, persistSales, triggerPrint, vistaOculta, config }) 
 
   return (
     <div className="gy-stack">
-      <div className="gy-field gy-date-picker">
-        <label><CalendarDays size={15} /> Jornada</label>
-        <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="gy-input" />
+      <div className="gy-jornada-top">
+        <div className="gy-field gy-date-picker" style={{ marginBottom: 0 }}>
+          <label><CalendarDays size={15} /> Jornada</label>
+          <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="gy-input" />
+        </div>
+        <button
+          type="button"
+          className="gy-btn-ghost gy-orden-btn"
+          onClick={() => setMasRecienteArriba((v) => !v)}
+          title="Cambiar el orden de los tiques"
+        >
+          <ArrowUpDown size={14} />
+          {masRecienteArriba ? "Más recientes arriba" : "Más antiguos arriba"}
+        </button>
       </div>
 
       <div className="gy-summary-cards">
@@ -1921,6 +1933,8 @@ function ChartBsLabel(props) {
 
 function HistorialTab({ sales, vistaOculta }) {
   const [mes, setMes] = useState(thisMonthKey());
+  const [sortCol, setSortCol] = useState(null); // null = orden natural (fecha ascendente)
+  const [sortDir, setSortDir] = useState("desc");
 
   const ventasMes = useMemo(() => sales.filter((s) => s.fecha.startsWith(mes)), [sales, mes]);
 
@@ -1934,6 +1948,39 @@ function HistorialTab({ sales, vistaOculta }) {
     });
     return Object.values(map).sort((a, b) => a.fecha.localeCompare(b.fecha));
   }, [ventasMes]);
+
+  function handleSort(col) {
+    if (sortCol === col) {
+      setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+    } else {
+      setSortCol(col);
+      setSortDir("desc");
+    }
+  }
+
+  const VALOR_COLUMNA = {
+    fecha: (d) => d.fecha,
+    tickets: (d) => d.tickets,
+    totalUSD: (d) => d.totalUSD,
+    totalBs: (d) => d.totalBs,
+    promedio: (d) => (d.tickets > 0 ? d.totalUSD / d.tickets : 0),
+  };
+
+  const porDiaOrdenado = useMemo(() => {
+    if (!sortCol) return porDia;
+    const obtener = VALOR_COLUMNA[sortCol];
+    return [...porDia].sort((a, b) => {
+      const va = obtener(a), vb = obtener(b);
+      if (va < vb) return sortDir === "asc" ? -1 : 1;
+      if (va > vb) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [porDia, sortCol, sortDir]);
+
+  function SortIcon({ col }) {
+    if (sortCol !== col) return <ArrowUpDown size={12} className="gy-th-sort-icon" />;
+    return sortDir === "asc" ? <ChevronUp size={13} className="gy-th-sort-icon active" /> : <ChevronDown size={13} className="gy-th-sort-icon active" />;
+  }
 
   const totalUSD = ventasMes.reduce((s, v) => s + v.totalUSD, 0);
   const totalBs = ventasMes.reduce((s, v) => s + v.totalBs, 0);
@@ -2074,10 +2121,16 @@ function HistorialTab({ sales, vistaOculta }) {
         ) : (
           <table className="gy-table">
             <thead>
-              <tr><th>Fecha</th><th>Tiques</th><th>Total $</th><th>Total Bs</th><th>Tique promedio</th></tr>
+              <tr>
+                <th className="gy-th-sortable" onClick={() => handleSort("fecha")}>Fecha <SortIcon col="fecha" /></th>
+                <th className="gy-th-sortable" onClick={() => handleSort("tickets")}>Tiques <SortIcon col="tickets" /></th>
+                <th className="gy-th-sortable" onClick={() => handleSort("totalUSD")}>Total $ <SortIcon col="totalUSD" /></th>
+                <th className="gy-th-sortable" onClick={() => handleSort("totalBs")}>Total Bs <SortIcon col="totalBs" /></th>
+                <th className="gy-th-sortable" onClick={() => handleSort("promedio")}>Tique promedio <SortIcon col="promedio" /></th>
+              </tr>
             </thead>
             <tbody>
-              {porDia.map((d) => (
+              {porDiaOrdenado.map((d) => (
                 <tr key={d.fecha}>
                   <td>{formatFechaLarga(d.fecha)}</td>
                   <td>{d.tickets}</td>
@@ -3377,6 +3430,8 @@ function StyleBlock() {
       .gy-confirm-inline { display: flex; gap: 6px; }
 
       .gy-date-picker { max-width: 240px; }
+      .gy-jornada-top { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+      .gy-orden-btn { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
       .gy-summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px,1fr)); gap: 10px; }
       .gy-card { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 4px; }
       .gy-card-label { font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
@@ -3439,6 +3494,10 @@ function StyleBlock() {
       .gy-table-wrap { overflow-x: auto; }
       .gy-table { width: 100%; border-collapse: collapse; font-size: 13px; }
       .gy-table th { text-align: left; padding: 8px 10px; color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.03em; border-bottom: 1px solid var(--line); }
+      .gy-th-sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+      .gy-th-sortable:hover { color: var(--ink); }
+      .gy-th-sort-icon { display: inline-block; vertical-align: middle; margin-left: 2px; opacity: 0.5; }
+      .gy-th-sort-icon.active { opacity: 1; color: var(--caramel-dark); }
       .gy-table td { padding: 9px 10px; border-bottom: 1px solid var(--line); }
       .gy-table tr:last-child td { border-bottom: none; }
 
