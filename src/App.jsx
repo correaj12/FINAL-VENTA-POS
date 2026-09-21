@@ -7,7 +7,7 @@ import {
   Eye, EyeOff, KeyRound, ChevronDown, ChevronRight, ArrowLeft,
   ImagePlus, LayoutGrid, Croissant, UtensilsCrossed, ChefHat, Store,
   Pizza, IceCream2, CupSoda, Cookie, Sandwich, ShieldCheck, Split,
-  Send, BookOpen, Truck, Award, ChevronUp, FileDown, CalendarClock, ArrowUpDown
+  Send, BookOpen, Truck, Award, ChevronUp, FileDown, CalendarClock, ArrowUpDown, Landmark
 } from "lucide-react";
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList } from "recharts";
 import { Document, Page, View, Text, Image as PDFImage, StyleSheet, pdf } from "@react-pdf/renderer";
@@ -214,6 +214,13 @@ const PAYMENT_METHODS = [
   { id: "usdt", label: "USDT", currency: "$", icon: Coins, needsRef: false },
 ];
 
+// Formas de pago para cuentas por pagar a proveedores: las mismas de
+// siempre, más Transferencia (más común entre negocios que entre clientes).
+const PROVEEDOR_PAYMENT_METHODS = [
+  ...PAYMENT_METHODS,
+  { id: "transferencia", label: "Transferencia", currency: "Bs", icon: Landmark, needsRef: false },
+];
+
 const TABS = [
   { id: "pedidos", label: "Pedidos", icon: Receipt },
   { id: "jornada", label: "Jornada", icon: ClipboardList },
@@ -278,7 +285,7 @@ function formatHora(ts) {
   catch { return ""; }
 }
 function paymentMeta(id) {
-  return PAYMENT_METHODS.find((m) => m.id === id) || PAYMENT_METHODS[0];
+  return PROVEEDOR_PAYMENT_METHODS.find((m) => m.id === id) || PAYMENT_METHODS[0];
 }
 // Convierte el monto de una línea de pago (en su moneda nativa) a su
 // equivalente en $, para poder sumar formas de pago mixtas.
@@ -309,6 +316,18 @@ function formatMontoPago(pago) {
 }
 function resumenPagosTexto(pagos) {
   return pagos.map((p) => `${paymentMeta(p.metodo).label} ${formatMontoPago(p)}`).join(" + ");
+}
+// Sugiere el próximo número de tique para una fecha, basándose en el número
+// MÁS ALTO ya usado ese día (no en la cantidad de ventas). Así, si se anula
+// un tique intermedio, el siguiente número no se repite ni queda pegado a
+// un número que ya existe.
+function suggestTicket(forFecha, salesList) {
+  const usados = salesList
+    .filter((s) => s.fecha === forFecha)
+    .map((s) => parseInt(s.numeroTicket, 10))
+    .filter((n) => !isNaN(n));
+  const maximo = usados.length > 0 ? Math.max(...usados) : 0;
+  return String(maximo + 1);
 }
 // Enmascara valores sensibles cuando el modo "ocultar vista" está activo
 function mask(text, hidden) {
@@ -677,15 +696,11 @@ function Header({ config, displayCurrency, setDisplayCurrency, vistaOculta, setV
         </div>
       </div>
       <div className="gy-header-right">
-        <div className="gy-rate-pill">
-          <ArrowLeftRight size={14} />
-          <span>{vistaOculta ? "1$ = •••• Bs" : `1$ = ${config.tasaCambio.toLocaleString("es-VE")} Bs`}</span>
-        </div>
         <button
           type="button"
           className="gy-icon-toggle"
           onClick={handleEyeClick}
-          title={vistaOculta ? "Mostrar tasa y totales (pide clave)" : "Ocultar tasa y totales"}
+          title={vistaOculta ? "Mostrar totales (pide clave)" : "Ocultar totales"}
         >
           {vistaOculta ? <EyeOff size={16} /> : <Eye size={16} />}
         </button>
@@ -1047,11 +1062,6 @@ function NuevaVentaTab({ products, config, sales, mesas, persistSales, persistPr
     onEnviadoAMesa && onEnviadoAMesa();
   }
 
-  const suggestTicket = useCallback((forFecha, salesList) => {
-    const count = salesList.filter((s) => s.fecha === forFecha).length;
-    return String(count + 1);
-  }, []);
-
   useEffect(() => {
     setNumeroTicket((prev) => (prev ? prev : suggestTicket(fecha, sales)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1120,7 +1130,11 @@ function NuevaVentaTab({ products, config, sales, mesas, persistSales, persistPr
   function validate() {
     const errs = {};
     if (cart.length === 0) errs.cart = "Agrega al menos un producto.";
-    if (!numeroTicket.trim()) errs.numeroTicket = "Coloca el número de tique.";
+    if (!numeroTicket.trim()) {
+      errs.numeroTicket = "Coloca el número de tique.";
+    } else if (sales.some((s) => s.fecha === fecha && s.numeroTicket === numeroTicket.trim())) {
+      errs.numeroTicket = "Ese número de tique ya existe para esta fecha.";
+    }
     if (pagos.length === 0) {
       errs.pagos = "Selecciona al menos una forma de pago.";
     } else if (pagos.length > 1 && pagos.some((p) => !p.monto || Number(p.monto) <= 0)) {
@@ -1541,15 +1555,18 @@ function MesaDetalle({ mesa, products, config, sales, persistSales, persistProdu
   }
 
   function abrirCobro() {
-    const count = sales.filter((s) => s.fecha === todayISO()).length;
-    setNumeroTicket(String(count + 1));
+    setNumeroTicket(suggestTicket(todayISO(), sales));
     setShowCobro(true);
   }
 
   function validate() {
     const errs = {};
     if (mesa.items.length === 0) errs.cart = "Agrega al menos un producto antes de cobrar.";
-    if (!numeroTicket.trim()) errs.numeroTicket = "Coloca el número de tique.";
+    if (!numeroTicket.trim()) {
+      errs.numeroTicket = "Coloca el número de tique.";
+    } else if (sales.some((s) => s.fecha === todayISO() && s.numeroTicket === numeroTicket.trim())) {
+      errs.numeroTicket = "Ese número de tique ya existe para esta fecha.";
+    }
     if (pagos.length === 0) {
       errs.pagos = "Selecciona al menos una forma de pago.";
     } else if (pagos.length > 1 && pagos.some((p) => !p.monto || Number(p.monto) <= 0)) {
@@ -2581,7 +2598,7 @@ function ProveedoresTab({ proveedores, persistProveedores, config, showToast }) 
             <p>Indica cómo se pagó, para llevar un respaldo digital de esta cuenta.</p>
 
             <div className="gy-payment-grid">
-              {PAYMENT_METHODS.map((m) => {
+              {PROVEEDOR_PAYMENT_METHODS.map((m) => {
                 const Icon = m.icon;
                 return (
                   <button
