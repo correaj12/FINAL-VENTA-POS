@@ -2024,13 +2024,11 @@ function HistorialTab({ sales, vistaOculta }) {
     let acumulado = 0;
     return porDia.map((d, idx) => {
       acumulado += d.totalUSD;
-      const diaSemana = new Date(`${d.fecha}T00:00:00`).getDay(); // 0=domingo, 1=lunes...
       return {
         dia: d.fecha.slice(8, 10),
         USD: Math.round(d.totalUSD * 100) / 100,
         Bs: Math.round(d.totalBs),
         promedio: Math.round((acumulado / (idx + 1)) * 100) / 100,
-        esLunes: diaSemana === 1,
       };
     });
   }, [porDia]);
